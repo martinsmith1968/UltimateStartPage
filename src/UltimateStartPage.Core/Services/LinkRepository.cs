@@ -7,8 +7,9 @@ using UltimateStartPage.Core.Models;
 namespace UltimateStartPage.Core.Services
 {
     // Stub implementation — in-memory only.
-    // Real persistence via WritableSettingsStore will be added in the VSIX project once
-    // the VS SDK is available; this class lives in Core so it can be unit-tested freely.
+    // Real persistence serialises to JSON at %APPDATA%\UltimateStartPage\settings.json
+    // (via System.Text.Json, WriteIndented = true) — see Decision #4.
+    // This class lives in Core so it can be unit-tested freely without VS SDK dependencies.
     public class LinkRepository : ILinkRepository
     {
         private readonly List<LinkGroup> _groups = new List<LinkGroup>();

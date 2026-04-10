@@ -69,4 +69,62 @@
 6. Add drag & drop
 7. Add edit mode toggle
 
-See `.squad/decisions.md` for full architectural decision record and test strategy details.
+---
+
+### 2026-04-10 — XAML Shell Build + Review Fixes (Verbal session)
+
+#### Fix 1: LinkRepository.cs comment
+- Corrected the comment referencing `WritableSettingsStore` to accurately reflect Decision #4: JSON in `%APPDATA%\UltimateStartPage\settings.json` via `System.Text.Json`.
+
+#### Fix 2: IncludeAssemblyInVSIXContainer
+- Added `<IncludeAssemblyInVSIXContainer>true</IncludeAssemblyInVSIXContainer>` to the Core project reference in the VS2022 csproj, with a comment explaining why it's required.
+
+#### XAML Shell: VS Theming Approach
+- Used `{DynamicResource {x:Static vsui:VsBrushes.XxxKey}}` throughout (live theme-change aware).
+- Key colour mappings:
+  - Background: `VsBrushes.ToolWindowBackgroundKey`
+  - Text: `VsBrushes.ToolWindowTextKey`
+  - Border: `VsBrushes.ToolWindowBorderKey`
+  - Muted text: `VsBrushes.GrayTextKey`
+  - Button face/text: `VsBrushes.ButtonFaceKey` / `VsBrushes.ButtonTextKey`
+  - Hover: `VsBrushes.CommandBarHoverKey` / `VsBrushes.CommandBarBorderKey`
+  - Pressed: `VsBrushes.HighlightKey`
+
+#### XAML Layout Structure
+- `DockPanel` root: header bar docked Top, `ScrollViewer` fills rest.
+- Header: `DockPanel` with title `TextBlock` left, "Add Group" `Button` right-aligned.
+- Groups: `ItemsControl` with `WrapPanel` for tiles.
+- Empty state: second `TextBlock` visibility toggled via `DataTrigger` on `HasGroups`.
+- Link tile: custom `ControlTemplate` on `Button` with hover/press triggers.
+
+#### ViewModels (stubs, in VS2022 project temporarily)
+- `StartPageViewModel`: `ObservableCollection<LinkGroupViewModel> Groups`, `bool HasGroups`, `ICommand AddGroupCommand`.
+- `LinkGroupViewModel`: `string Name`, `ObservableCollection<LinkViewModel> Links`.
+- `LinkViewModel`: `string Name`, `string Path`, `ICommand OpenCommand`.
+- `RelayCommand`: minimal `ICommand` implementation using `CommandManager.RequerySuggested`.
+- Implemented with standard `INotifyPropertyChanged` (no CommunityToolkit dependency in VS2022 project — see gotcha below).
+
+#### Build Gotchas: Legacy VSIX csproj + WPF + MSBuild from command line
+
+**1. WPF wpftmp project doesn't inherit PackageReferences**
+The WPF markup compiler (`MarkupCompilePass1`) creates a temporary `_wpftmp.csproj` that compiles ALL source files. This project does NOT inherit `<PackageReference>` items — only explicit `<Reference>` items. Because `Microsoft.VisualStudio.SDK` is a PackageReference, the VS SDK assemblies were not available to the wpftmp project. Fix: add explicit `<Reference>` items with `<HintPath>` for all required VS SDK assemblies and `<Private>False</Private>` to prevent copying.
+
+**2. VS-installed Shell.15.0 vs NuGet version**
+The resolver picks the VS-installed `Microsoft.VisualStudio.Shell.15.0.dll` (from `Common7\IDE\PublicAssemblies\`) over the NuGet HintPath version. The VS-installed version (17.0.0.0) references `Microsoft.VisualStudio.Threading` version `17.14.0.0`, while the NuGet package has `17.0.0.0`. Fix: reference Threading from the VS MSBuild VSSDK directory via `$(MSBuildBinPath)\..\..\Microsoft\VisualStudio\v17.0\VSSDK\Microsoft.VisualStudio.Threading.dll`.
+
+**3. WPF compilation outputs to obj\Debug, not bin\Debug**
+With `<CopyBuildOutputToOutputDirectory>false</CopyBuildOutputToOutputDirectory>`, the WPF wpftmp compiler outputs the DLL to `obj\Debug\` and the main CoreCompile is then skipped (considers output up-to-date). The VSSDK `CreatePkgDef` task expects the DLL at `$(TargetPath)` = `bin\Debug\`. Fix: add `<CreatePkgDefAssemblyToProcess>$(MSBuildProjectDirectory)\obj\$(Configuration)\$(AssemblyName).dll</CreatePkgDefAssemblyToProcess>`.
+
+**4. VSIX manifest issues**
+- Manifest must be `<None>` build action (not `<Content>`) for the VSSDK `FindVsixManifest` task.
+- The newer VS-installed VSSDK validator requires `<ProductArchitecture>amd64</ProductArchitecture>` as a **child element** (not attribute) of each `<InstallationTarget>`.
+
+**5. CommunityToolkit.Mvvm and wpftmp**
+Adding `CommunityToolkit.Mvvm` as a `PackageReference` causes the wpftmp project to fail (it's another PackageReference that's invisible to wpftmp). For now, ViewModels use hand-rolled `INotifyPropertyChanged` + `RelayCommand`. Note: per architecture decisions, ViewModels should move to Core (which can use CommunityToolkit) — when that happens, this issue disappears.
+
+#### Still to do (McManus)
+- Implement `AddGroupCommand` — prompt for name, persist via `ILinkRepository`
+- Implement `LinkViewModel.OpenCommand` — open `.sln`/`.csproj` via DTE or `IVsUIShellOpenDocument`
+- Move ViewModels to `UltimateStartPage.Core` (per Decision — ViewModels should be in Core)
+- Load groups from `ILinkRepository` on ViewModel init, replace stub `new StartPageViewModel()`
+

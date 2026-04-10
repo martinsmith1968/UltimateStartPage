@@ -1,4 +1,5 @@
 using System;
+using FluentAssertions;
 using UltimateStartPage.Core.Models;
 using Xunit;
 
@@ -11,22 +12,24 @@ namespace UltimateStartPage.Core.Tests.Models
         {
             var link = new SolutionLink("My Solution", @"C:\Projects\MySolution.sln");
 
-            Assert.Equal("My Solution", link.Name);
-            Assert.Equal(@"C:\Projects\MySolution.sln", link.FilePath);
+            link.Name.Should().Be("My Solution");
+            link.FilePath.Should().Be(@"C:\Projects\MySolution.sln");
         }
 
         [Fact]
         public void Constructor_ThrowsOnNullName()
         {
-            Assert.Throws<ArgumentNullException>(() =>
-                new SolutionLink(null, @"C:\Projects\MySolution.sln"));
+            Action act = () => new SolutionLink(null, @"C:\Projects\MySolution.sln");
+
+            act.Should().Throw<ArgumentNullException>().WithParameterName("name");
         }
 
         [Fact]
         public void Constructor_ThrowsOnNullFilePath()
         {
-            Assert.Throws<ArgumentNullException>(() =>
-                new SolutionLink("My Solution", null));
+            Action act = () => new SolutionLink("My Solution", null);
+
+            act.Should().Throw<ArgumentNullException>().WithParameterName("filePath");
         }
 
         [Fact]
@@ -34,8 +37,8 @@ namespace UltimateStartPage.Core.Tests.Models
         {
             var link = new SolutionLink();
 
-            Assert.Null(link.Name);
-            Assert.Null(link.FilePath);
+            link.Name.Should().BeNull();
+            link.FilePath.Should().BeNull();
         }
     }
 }

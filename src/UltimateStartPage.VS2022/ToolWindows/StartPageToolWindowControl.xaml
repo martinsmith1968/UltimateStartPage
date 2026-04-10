@@ -3,14 +3,164 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:vsui="clr-namespace:Microsoft.VisualStudio.Shell;assembly=Microsoft.VisualStudio.Shell.15.0"
+             xmlns:viewmodels="clr-namespace:UltimateStartPage.VS2022.ViewModels"
              mc:Ignorable="d"
-             d:DesignHeight="450" d:DesignWidth="800"
-             Name="UltimateStartPageWindowControl">
-    <!-- Placeholder layout — Verbal owns this XAML -->
-    <Grid>
-        <TextBlock HorizontalAlignment="Center"
-                   VerticalAlignment="Center"
-                   Text="Ultimate Start Page — placeholder (Verbal owns XAML)"
-                   FontSize="16" />
-    </Grid>
+             d:DesignHeight="600" d:DesignWidth="900"
+             d:DataContext="{d:DesignInstance viewmodels:StartPageViewModel, IsDesignTimeCreatable=True}"
+             Name="UltimateStartPageWindowControl"
+             Background="{DynamicResource {x:Static vsui:VsBrushes.ToolWindowBackgroundKey}}">
+
+    <UserControl.Resources>
+
+        <!-- Link tile: custom button template with VS-themed hover state -->
+        <Style x:Key="LinkTileButtonStyle" TargetType="Button">
+            <Setter Property="Background"       Value="{DynamicResource {x:Static vsui:VsBrushes.ButtonFaceKey}}" />
+            <Setter Property="Foreground"       Value="{DynamicResource {x:Static vsui:VsBrushes.ButtonTextKey}}" />
+            <Setter Property="BorderBrush"      Value="{DynamicResource {x:Static vsui:VsBrushes.ToolWindowBorderKey}}" />
+            <Setter Property="BorderThickness"  Value="1" />
+            <Setter Property="Padding"          Value="10,6" />
+            <Setter Property="Margin"           Value="4" />
+            <Setter Property="Width"            Value="190" />
+            <Setter Property="Height"           Value="58" />
+            <Setter Property="HorizontalContentAlignment" Value="Left" />
+            <Setter Property="Cursor"           Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="TileBorder"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                Padding="{TemplateBinding Padding}"
+                                SnapsToDevicePixels="True">
+                            <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                              VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="TileBorder" Property="Background"
+                                        Value="{DynamicResource {x:Static vsui:VsBrushes.CommandBarHoverKey}}" />
+                                <Setter TargetName="TileBorder" Property="BorderBrush"
+                                        Value="{DynamicResource {x:Static vsui:VsBrushes.CommandBarBorderKey}}" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="TileBorder" Property="Background"
+                                        Value="{DynamicResource {x:Static vsui:VsBrushes.HighlightKey}}" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Link tile content template (DataContext: LinkViewModel) -->
+        <DataTemplate x:Key="LinkTileTemplate" DataType="{x:Type viewmodels:LinkViewModel}">
+            <Button Style="{StaticResource LinkTileButtonStyle}"
+                    Command="{Binding OpenCommand}"
+                    ToolTip="{Binding Path}">
+                <StackPanel>
+                    <TextBlock Text="{Binding Name}"
+                               Foreground="{DynamicResource {x:Static vsui:VsBrushes.ToolWindowTextKey}}"
+                               FontWeight="SemiBold"
+                               TextTrimming="CharacterEllipsis" />
+                    <TextBlock Text="{Binding Path}"
+                               Foreground="{DynamicResource {x:Static vsui:VsBrushes.GrayTextKey}}"
+                               FontSize="10"
+                               Margin="0,2,0,0"
+                               TextTrimming="CharacterEllipsis" />
+                </StackPanel>
+            </Button>
+        </DataTemplate>
+
+        <!-- Link group template (DataContext: LinkGroupViewModel) -->
+        <DataTemplate x:Key="LinkGroupTemplate" DataType="{x:Type viewmodels:LinkGroupViewModel}">
+            <StackPanel Margin="0,0,0,20">
+                <TextBlock Text="{Binding Name}"
+                           Foreground="{DynamicResource {x:Static vsui:VsBrushes.ToolWindowTextKey}}"
+                           FontSize="13"
+                           FontWeight="SemiBold"
+                           Margin="2,0,0,4" />
+                <Separator Background="{DynamicResource {x:Static vsui:VsBrushes.ToolWindowBorderKey}}"
+                           Margin="0,0,0,6" />
+                <ItemsControl ItemsSource="{Binding Links}"
+                              ItemTemplate="{StaticResource LinkTileTemplate}">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <WrapPanel Orientation="Horizontal" />
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                </ItemsControl>
+            </StackPanel>
+        </DataTemplate>
+
+    </UserControl.Resources>
+
+    <DockPanel LastChildFill="True">
+
+        <!-- Header bar -->
+        <Border DockPanel.Dock="Top"
+                Background="{DynamicResource {x:Static vsui:VsBrushes.ToolWindowBackgroundKey}}"
+                BorderBrush="{DynamicResource {x:Static vsui:VsBrushes.ToolWindowBorderKey}}"
+                BorderThickness="0,0,0,1"
+                Padding="14,8">
+            <DockPanel>
+                <Button DockPanel.Dock="Right"
+                        Content="Add Group"
+                        Command="{Binding AddGroupCommand}"
+                        Padding="12,4"
+                        Margin="8,0,0,0"
+                        VerticalAlignment="Center" />
+                <TextBlock Text="Ultimate Start Page"
+                           Foreground="{DynamicResource {x:Static vsui:VsBrushes.ToolWindowTextKey}}"
+                           FontSize="16"
+                           FontWeight="Bold"
+                           VerticalAlignment="Center" />
+            </DockPanel>
+        </Border>
+
+        <!-- Main scrollable content area -->
+        <ScrollViewer VerticalScrollBarVisibility="Auto"
+                      HorizontalScrollBarVisibility="Disabled"
+                      Background="{DynamicResource {x:Static vsui:VsBrushes.ToolWindowBackgroundKey}}">
+            <Grid Margin="14,14,14,14">
+
+                <!-- Groups list — visible when HasGroups is True -->
+                <ItemsControl ItemsSource="{Binding Groups}"
+                              ItemTemplate="{StaticResource LinkGroupTemplate}">
+                    <ItemsControl.Style>
+                        <Style TargetType="ItemsControl">
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding HasGroups}" Value="False">
+                                    <Setter Property="Visibility" Value="Collapsed" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </ItemsControl.Style>
+                </ItemsControl>
+
+                <!-- Empty state — visible when HasGroups is False -->
+                <TextBlock Text="No links yet — click Add Group to get started"
+                           Foreground="{DynamicResource {x:Static vsui:VsBrushes.GrayTextKey}}"
+                           HorizontalAlignment="Center"
+                           VerticalAlignment="Top"
+                           FontSize="13"
+                           Margin="0,48,0,0">
+                    <TextBlock.Style>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="Visibility" Value="Collapsed" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding HasGroups}" Value="False">
+                                    <Setter Property="Visibility" Value="Visible" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </TextBlock.Style>
+                </TextBlock>
+
+            </Grid>
+        </ScrollViewer>
+
+    </DockPanel>
 </UserControl>
+

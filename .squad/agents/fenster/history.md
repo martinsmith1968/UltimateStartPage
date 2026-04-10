@@ -12,6 +12,25 @@
 
 > Append new learnings here after each session.
 
+### Session: FluentAssertions + LinkRepository Tests — 2025-07-16
+
+**Test Stack Alignment — Decision #5 Enforcement**
+- Added `FluentAssertions 6.12.0` to `UltimateStartPage.Core.Tests.csproj` (6.x is the last major series with .NET Framework 4.7.2 support; 7.x dropped net472).
+- NSubstitute 5.1.0 was already present — no change needed.
+- Migrated `SolutionLinkTests.cs` from `Assert.*` to FluentAssertions: `Should().Be()`, `Should().BeNull()`, `Should().Throw<T>().WithParameterName()`.
+- Created `Services/LinkRepositoryTests.cs` with 14 tests covering: empty initial state, group auto-creation, multi-link groups, duplicate file path entries (allowed by design), null/empty/whitespace group name guards, null link guard, remove-happy-path, remove-non-existent group/path, first-match removal on duplicates, SaveGroupsAsync replace semantics, SaveGroupsAsync with empty list.
+- Total test count: **18** (was 4). All passing.
+
+**FluentAssertions Patterns Established**
+- Sync exception assertions: wrap in `Action act = () => …; act.Should().Throw<T>().WithParameterName("x");`
+- Async exception assertions: wrap in `Func<Task> act = () => …; await act.Should().ThrowAsync<T>();`
+- Async no-throw: `await act.Should().NotThrowAsync();`
+- Collection assertions: `.Should().BeEmpty()`, `.Should().HaveCount(n)`, `.Should().ContainSingle(predicate)`
+- Avoid `Assert.Equal` / `Assert.Throws` — FA gives richer failure messages (expected vs actual diff, parameter names).
+
+**net472 + FluentAssertions Note**
+- Pin to FA 6.x. FA 7.0+ targets net6.0+. Running FA 7.x on net472 will cause runtime failures.
+
 ### Session: Test Strategy — 2025-07-16
 
 **VS SDK Testing Constraints**
