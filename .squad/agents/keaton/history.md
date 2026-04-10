@@ -67,3 +67,29 @@
 - Tool window in document well may not feel exactly like a start page — needs early prototyping.
 - VS2026 may change extension hosting model (e.g., .NET 8+) — monitor MS announcements.
 - `ProvideAutoLoad` has perf concerns — mitigate with background loading.
+
+### 2025-07-14 — XAML Shell Review
+
+**Reviewed:** Verbal's scaffold fixes + XAML shell (tool window control, 3 ViewModels, RelayCommand)
+**Verdict:** APPROVED
+
+**What was right:**
+- All VS theming via `DynamicResource {x:Static vsui:VsBrushes.*Key}` — zero hardcoded colours. Verified 15+ brush references.
+- MVVM is clean: all 3 ViewModels implement `INotifyPropertyChanged` with `[CallerMemberName]`. `HasGroups` raises via `CollectionChanged` subscription.
+- All XAML bindings map correctly to ViewModel properties. No mismatches found.
+- Styles and DataTemplates in `UserControl.Resources` — not inline. Layout structure (DockPanel → header + ScrollViewer → WrapPanel tiles) is sensible.
+- Code-behind is 17 lines. Stub DataContext only. No business logic.
+- LinkRepository.cs comment correctly fixed to reference JSON/%APPDATA% per Decision #4.
+- Core ProjectReference has `IncludeAssemblyInVSIXContainer=true`. Manifest has 3 SKU targets with amd64 + CoreEditor prerequisite.
+- Empty state toggle via DataTrigger is clean — no code-behind visibility hacks.
+
+**Patterns noted (WPF/VS extensions):**
+- VS tool windows inherit theme resource dictionaries from the shell. Standard WPF controls (Button, TextBox) get VS theming automatically. Only custom ControlTemplates need explicit VsBrushes references.
+- `CommandManager.RequerySuggested` is WPF-specific (PresentationCore). Blocks ViewModel migration to Core. CommunityToolkit.Mvvm solves this cleanly.
+- `ICommand` lives in `System` assembly on net472, NOT PresentationCore. ViewModels can reference `ICommand` without WPF dependency.
+- `IncludeAssemblyInVSIXContainer=false` on project output + `RegisterWithCodebase=true` is non-standard. VSSDK templates default to `true`. May work via pkgdef but needs F5 validation.
+- WPF markup compiler `_wpftmp.csproj` doesn't inherit PackageReferences — explicit `<Reference>` items needed for XAML compilation. Verbal's workaround with hint paths is correct.
+
+**Still open:**
+- `IncludeAssemblyInVSIXContainer=false` on VS2022 project output — McManus must F5 validate.
+- ViewModels live in VS2022 project temporarily — McManus migrates to Core with CommunityToolkit.Mvvm.

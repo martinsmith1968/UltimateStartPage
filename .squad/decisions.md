@@ -237,6 +237,76 @@
 
 ---
 
+### 13. Keaton XAML Shell Review: APPROVED
+
+**Decided:** 2025-07-14  
+**Reviewer:** Keaton (Team Lead)  
+**Author Under Review:** Verbal (XAML/UI)  
+**Status:** Approved
+
+- **Scope:** Reviewed Verbal's scaffold fixes and XAML shell deliverables (LinkRepository comment, Core reference, manifest, XAML/ViewModel/RelayCommand)
+- **Verdict:** APPROVED — no blocking issues
+
+**Review Findings:**
+
+1. **Scaffold Fixes — PASS**
+   - LinkRepository.cs comment updated to reference JSON/%APPDATA% per Decision #4 ✓
+   - Core ProjectReference: `IncludeAssemblyInVSIXContainer=true` set correctly ✓
+   - Manifest: Three InstallationTargets (Community/Professional/Enterprise), `[17.0, 18.0)`, CoreEditor prerequisite, metadata populated ✓
+   - **Note:** Main project's `IncludeAssemblyInVSIXContainer=false` (line 21) — plausible (pkgdef + `RegisterWithCodebase`), but non-standard. McManus to validate F5; if VSIX fails to load, flip to `true`
+
+2. **VS Theming — PASS**
+   - Every colour/brush uses `{DynamicResource {x:Static vsui:VsBrushes.*Key}}` — no hardcoded colours
+   - 15+ brush references verified (Backgrounds, Text, Buttons, Borders, Hover/Press)
+   - Button inherits VS shell theming correctly
+
+3. **MVVM Compliance — PASS**
+   - All three ViewModels implement `INotifyPropertyChanged` with `[CallerMemberName]` pattern
+   - `HasGroups` raises change notification via `Groups.CollectionChanged` subscription
+   - All XAML bindings map to real ViewModel properties
+   - `ICommand` exposed via `RelayCommand`
+   - No VS SDK or WPF-specific dependencies in ViewModel logic
+
+4. **XAML Quality — PASS**
+   - Styles and DataTemplates in `UserControl.Resources` (not inline)
+   - Layout: `DockPanel` root (header + body), `WrapPanel` for responsive tiles, `Grid` for groups/empty-state
+   - Empty state driven by `DataTrigger` on `HasGroups` (no code-behind visibility logic)
+   - `DesignInstance` set for Blend/designer support
+
+5. **Code-Behind — PASS**
+   - `StartPageToolWindowControl.xaml.cs`: 17 lines. `InitializeComponent()` + stub `DataContext`. No business logic. Clear handoff comment for McManus.
+
+6. **ViewModel Location — ACKNOWLEDGED**
+   - Correctly noted ViewModels should move to Core
+   - `RelayCommand` dependency on WPF API (`CommandManager.RequerySuggested`) blocks today
+   - **Migration path:** Replace with `CommunityToolkit.Mvvm.Input.RelayCommand` (net472 compatible, no WPF dependency). Decision #6 already includes toolkit. Low risk.
+
+**Minor Nits (Non-blocking):**
+- Unused `using System.Collections.ObjectModel;` in LinkViewModel.cs
+- Main project `IncludeAssemblyInVSIXContainer=false` — F5 validation needed
+
+**Ready for McManus — YES**
+
+ViewModel structure clean and well-organized:
+- `StartPageViewModel` → root, `Groups` collection, `HasGroups`, `AddGroupCommand`
+- `LinkGroupViewModel` → `Name`, `Links` collection
+- `LinkViewModel` → `Name`, `Path`, `OpenCommand`
+
+All stubs include `// TODO (McManus)` comments with specific implementation guidance.
+
+**McManus Next Steps:**
+1. Add `CommunityToolkit.Mvvm` NuGet to Core project
+2. Move ViewModels to `UltimateStartPage.Core.ViewModels`, replace manual INPC with `ObservableObject` and `RelayCommand` with toolkit version
+3. Delete `ViewModels\RelayCommand.cs` from VS2022 project
+4. Inject `ILinkRepository` into `StartPageViewModel` constructor
+5. Implement `LoadGroupsAsync()` — populate `Groups` from repository on tool window load
+6. Implement `ExecuteAddGroup()` — prompt for group name, persist via `ILinkRepository`
+7. Implement `ExecuteOpen()` in `LinkViewModel` — open solution via DTE or `IVsUIShellOpenDocument`
+8. Replace stub `DataContext` in code-behind with DI-resolved ViewModel via package service provider
+9. **F5 validate** VSIX deployment in VS2022 experimental instance
+
+---
+
 ## Governance
 
 - All meaningful changes require team consensus
