@@ -195,6 +195,48 @@
 
 ---
 
+### 10. VS Theming Approach
+
+**Decided:** 2026-04-10  
+**Owner:** Verbal (WPF/UI Developer)  
+**Status:** Accepted
+
+- **Decision:** Use `{DynamicResource {x:Static vsui:VsBrushes.XxxKey}}` throughout the XAML for theme awareness.
+- **Rationale:** Live theme-change aware — WPF re-evaluates `DynamicResource` when VS switches themes. `VsBrushes` type is the established pattern for VS extension WPF controls.
+- **Namespace:** `xmlns:vsui="clr-namespace:Microsoft.VisualStudio.Shell;assembly=Microsoft.VisualStudio.Shell.15.0"`
+- **Build Infrastructure:** Explicit `<Reference>` items added for Shell.15.0, Shell.Framework, EnvDTE, and WPF assemblies (all with `<Private>False</Private>`) — required for WPF wpftmp projects using PackageReference.
+
+---
+
+### 11. Start Page Layout & ViewModel Architecture
+
+**Decided:** 2026-04-10  
+**Owner:** Verbal (WPF/UI Developer)  
+**Status:** Accepted (temporary ViewModel location)
+
+- **Decision:** `DockPanel` root with `Border` header (docked Top), `ScrollViewer` + `WrapPanel` for tile groups (190×58), empty state via `DataTrigger` on `StartPageViewModel.HasGroups`.
+- **Rationale:** `DockPanel` avoids nested Grid; `WrapPanel` reflows tiles naturally on resize. Empty state triggers on computed bool property without requiring a Converter.
+- **ViewModel Location (TEMPORARY):** ViewModels (`StartPageViewModel`, `LinkGroupViewModel`, `LinkViewModel`) currently in `src/UltimateStartPage.VS2022/ViewModels/` as stubs only.
+  - **Mandatory:** McManus must move to `UltimateStartPage.Core` before implementing real logic (zero VS SDK dependency)
+  - **Hand-rolled Command:** Simple `RelayCommand` using `CommandManager.RequerySuggested` (no `CommunityToolkit.Mvvm` in VS2022 due to wpftmp build issue)
+  - **DI Bootstrap:** Code-behind sets `DataContext = new StartPageViewModel()` — McManus to integrate service-provider wiring
+- **Tile dimensions:** 190×58 (hardcoded defaults, to be refined with real content).
+
+---
+
+### 12. Test Stack: xUnit + NSubstitute + FluentAssertions
+
+**Decided:** 2025-07-16 (Confirmed 2026-04-10)  
+**Owner:** Fenster (QA Tester)  
+**Status:** Accepted (Decision #5 compliance verified)
+
+- **Packages:** xUnit 2.6.6, NSubstitute 5.1.0, FluentAssertions 6.12.0, Microsoft.NET.Test.Sdk 17.8.0
+- **Implementation:** Fluent assertions throughout; 18 tests covering SolutionLink models and LinkRepository edge cases (null validation, duplicate paths, non-existent removals, SaveGroupsAsync behavior)
+- **Coverage Gate:** 85% Core line coverage minimum (enforced at PR gate)
+- **Deferred:** Serialization tests (JSON round-trip) to later session
+
+---
+
 ## Governance
 
 - All meaningful changes require team consensus

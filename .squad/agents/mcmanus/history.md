@@ -65,3 +65,38 @@
 - VS2026 may require .NET 8+ for extensions (monitor announcements)
 
 See `.squad/decisions.md` for full architectural decision record.
+
+### 2026-04-10 — UI & Test Infrastructure Complete (Verbal & Fenster)
+
+**Key Status for McManus:**
+
+ViewModels are now **stubbed in `src/UltimateStartPage.VS2022/ViewModels/`** (temporary):
+- `StartPageViewModel` with `Groups`, `HasGroups`, `AddGroupCommand`
+- `LinkGroupViewModel` with `Name`, `Links`, `OpenCommand`
+- `LinkViewModel` with `Name`, `Path`, `OpenCommand`
+- Simple `RelayCommand` using `CommandManager.RequerySuggested` (no CommunityToolkit due to wpftmp issue)
+
+**Immediate Tasks for McManus:**
+
+1. **Implement command bodies:**
+   - `AddGroupCommand` → prompt user for group name, call `ILinkRepository.CreateGroupAsync(name)`
+   - `OpenCommand` (both ViewModels) → launch file/folder paths (using Win32 or ProcessStart)
+
+2. **Move ViewModels to Core:**
+   - Move `src/UltimateStartPage.VS2022/ViewModels/` to `src/UltimateStartPage.Core/ViewModels/`
+   - Rewrite with `CommunityToolkit.Mvvm` (ObservableObject, RelayCommand<T>)
+   - Zero VS SDK dependencies
+
+3. **Inject ILinkRepository:**
+   - Replace `new StartPageViewModel()` stub in `StartPageToolWindowControl.xaml.cs`
+   - Wire via `AsyncPackage.GetServiceAsync<ILinkRepository>()` (or DI container)
+   - Pass injected repo to `StartPageViewModel` constructor
+
+4. **Test integration:**
+   - Verify XAML layout compiles and renders (F5 in VS2022 experimental)
+   - Confirm tool window appears in document well
+   - Test empty state / populated state toggle
+
+---
+
+See `.squad/decisions.md` decisions #10-11 for theming, layout, and ViewModel architecture details.
