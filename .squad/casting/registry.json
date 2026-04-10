@@ -1,0 +1,52 @@
+{
+  "agents": {
+    "keaton": {
+      "persistent_name": "Keaton",
+      "universe": "The Usual Suspects",
+      "role": "Team Lead",
+      "created_at": "2026-04-10T13:49:14.940Z",
+      "legacy_named": false,
+      "status": "active"
+    },
+    "mcmanus": {
+      "persistent_name": "McManus",
+      "universe": "The Usual Suspects",
+      "role": ".NET Developer",
+      "created_at": "2026-04-10T13:49:14.940Z",
+      "legacy_named": false,
+      "status": "active"
+    },
+    "fenster": {
+      "persistent_name": "Fenster",
+      "universe": "The Usual Suspects",
+      "role": "QA Tester",
+      "created_at": "2026-04-10T13:49:14.940Z",
+      "legacy_named": false,
+      "status": "active"
+    },
+    "verbal": {
+      "persistent_name": "Verbal",
+      "universe": "The Usual Suspects",
+      "role": "WPF/UI Developer",
+      "created_at": "2026-04-10T13:54:34.032Z",
+      "legacy_named": false,
+      "status": "active"
+    },
+    "scribe": {
+      "persistent_name": "Scribe",
+      "universe": "exempt",
+      "role": "Scribe",
+      "created_at": "2026-04-10T13:49:14.940Z",
+      "legacy_named": false,
+      "status": "active"
+    },
+    "ralph": {
+      "persistent_name": "Ralph",
+      "universe": "exempt",
+      "role": "Work Monitor",
+      "created_at": "2026-04-10T13:49:14.940Z",
+      "legacy_named": false,
+      "status": "active"
+    }
+  }
+}
