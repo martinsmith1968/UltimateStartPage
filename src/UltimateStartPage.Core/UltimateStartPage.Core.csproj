@@ -8,4 +8,16 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+  <ItemGroup>
+    <!-- System.Text.Json per Decision #4 (JSON file in %APPDATA%). Version 6.x targets
+         netstandard2.0 which is compatible with net472. -->
+    <PackageReference Include="System.Text.Json" Version="6.0.10" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- WindowsBase provides System.Windows.Input.ICommand used by ViewModels.
+         It is part of the .NET Framework 4.7.2 and is not a VS SDK dependency. -->
+    <Reference Include="WindowsBase" />
+  </ItemGroup>
+
 </Project>

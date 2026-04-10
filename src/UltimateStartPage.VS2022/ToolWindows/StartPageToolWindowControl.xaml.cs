@@ -1,5 +1,6 @@
 using System.Windows.Controls;
-using UltimateStartPage.VS2022.ViewModels;
+using UltimateStartPage.Core.Services;
+using UltimateStartPage.Core.ViewModels;
 
 namespace UltimateStartPage.VS2022.ToolWindows
 {
@@ -9,9 +10,15 @@ namespace UltimateStartPage.VS2022.ToolWindows
         {
             InitializeComponent();
 
-            // Stub DataContext — McManus will replace with DI-resolved StartPageViewModel
-            // once ILinkRepository is injected via the package service provider.
-            DataContext = new StartPageViewModel();
+            // TODO (McManus): replace with proper DI via AsyncPackage.GetServiceAsync<ILinkRepository>()
+            // once MEF/service-provider wiring is implemented in UltimateStartPagePackage.
+            // For now, construct directly — LinkRepository defaults to %APPDATA%\UltimateStartPage\links.json.
+            var repository = new LinkRepository();
+            var viewModel = new StartPageViewModel(repository);
+            DataContext = viewModel;
+
+            // Fire-and-forget load on UI thread after InitializeComponent.
+            _ = viewModel.LoadAsync();
         }
     }
 }

@@ -100,3 +100,38 @@ ViewModels are now **stubbed in `src/UltimateStartPage.VS2022/ViewModels/`** (te
 ---
 
 See `.squad/decisions.md` decisions #10-11 for theming, layout, and ViewModel architecture details.
+
+### 2026-04-10 — ViewModel Implementation
+
+**NuGet choices made:**
+- `System.Text.Json 6.0.10` — honours Decision #4 exactly. Net472-compatible via netstandard2.0 target. `File.ReadAllTextAsync` doesn't exist on net472; polyfilled with `Task.Run(() => File.ReadAllText(...))`.
+- **No CommunityToolkit.Mvvm** — 8.x requires .NET 8 (incompatible); 7.x source generators require C# 9+ partial properties (we're on LangVersion 8.0). Hand-rolled `ObservableObject` + `RelayCommand` + `AsyncRelayCommand` in `Core/Mvvm/` — < 100 lines total, zero external deps.
+- `WindowsBase` framework reference added to Core.csproj — needed for `System.Windows.Input.ICommand`. Not a VS SDK dep; part of .NET Framework 4.7.2.
+
+**DI pattern used:**
+- `StartPageViewModel(ILinkRepository)` constructor injection. `LinkGroupViewModel` and `LinkViewModel` receive parent-remove callbacks as `Func<T, Task>` parameters — no circular parent references.
+- `StartPageToolWindowControl` constructs `new LinkRepository()` + `new StartPageViewModel(repo)` directly with a TODO for proper `AsyncPackage.GetServiceAsync<ILinkRepository>()` wiring.
+
+**JSON serialisation approach:**
+- `LinkRepository` now persists to `%APPDATA%\UltimateStartPage\links.json` with `WriteIndented = true`.
+- Constructor accepts optional `string filePath` parameter for test isolation.
+- Handles: file not found (returns empty), corrupt JSON (returns empty, silent), missing directory (creates it).
+
+**net472 gotchas:**
+- `File.ReadAllTextAsync` / `File.WriteAllTextAsync` don't exist — use `Task.Run()` wrappers.
+- Nullable reference type `??` coalescing between `List<T>` and `T[]` needs explicit cast to common interface type (e.g. `?? (IReadOnlyList<T>)Array.Empty<T>()`).
+- Source generators for CommunityToolkit.Mvvm require C# 9+ — net472 projects targeting LangVersion 8 can't use them.
+
+**Test results:** 25/25 tests passing (18 pre-existing + 7 new ViewModel + LinkRepository tests).
+
+**ViewModels in Core — what's done:**
+- `Core/Mvvm/`: `ObservableObject`, `RelayCommand`, `AsyncRelayCommand`
+- `Core/ViewModels/`: `StartPageViewModel`, `LinkGroupViewModel`, `LinkViewModel`
+- `Core/Services/LinkRepository`: real JSON persistence replacing in-memory stub
+- `VS2022/ViewModels/` stubs: excluded from compilation, marked as "moved to Core"
+- XAML namespace updated to `clr-namespace:UltimateStartPage.Core.ViewModels;assembly=UltimateStartPage.Core`
+
+**Next steps:**
+- Fenster: expand test coverage for LinkGroupViewModel, LinkViewModel command behaviour
+- McManus: wire `ILinkRepository` via `AsyncPackage` service provider (proper DI), implement `IVsSolutionEvents` show/hide logic
+- Verbal: verify XAML renders correctly with the new Core-namespace ViewModel types in F5 experimental instance

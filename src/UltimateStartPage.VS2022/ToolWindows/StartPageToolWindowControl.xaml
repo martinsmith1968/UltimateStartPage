@@ -4,10 +4,10 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:vsui="clr-namespace:Microsoft.VisualStudio.Shell;assembly=Microsoft.VisualStudio.Shell.15.0"
-             xmlns:viewmodels="clr-namespace:UltimateStartPage.VS2022.ViewModels"
+             xmlns:viewmodels="clr-namespace:UltimateStartPage.Core.ViewModels;assembly=UltimateStartPage.Core"
              mc:Ignorable="d"
              d:DesignHeight="600" d:DesignWidth="900"
-             d:DataContext="{d:DesignInstance viewmodels:StartPageViewModel, IsDesignTimeCreatable=True}"
+             d:DataContext="{d:DesignInstance viewmodels:StartPageViewModel, IsDesignTimeCreatable=False}"
              Name="UltimateStartPageWindowControl"
              Background="{DynamicResource {x:Static vsui:VsBrushes.ToolWindowBackgroundKey}}">
 

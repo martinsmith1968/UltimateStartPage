@@ -1,54 +1,90 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+using System.Text.Json;
 using System.Threading.Tasks;
 using UltimateStartPage.Core.Models;
 
 namespace UltimateStartPage.Core.Services
 {
-    // Stub implementation — in-memory only.
-    // Real persistence serialises to JSON at %APPDATA%\UltimateStartPage\settings.json
-    // (via System.Text.Json, WriteIndented = true) — see Decision #4.
-    // This class lives in Core so it can be unit-tested freely without VS SDK dependencies.
+    /// <summary>
+    /// Persists link groups as JSON at %APPDATA%\UltimateStartPage\links.json (Decision #4).
+    /// Pass a custom filePath to the constructor for test isolation.
+    /// </summary>
     public class LinkRepository : ILinkRepository
     {
-        private readonly List<LinkGroup> _groups = new List<LinkGroup>();
-
-        public Task<IReadOnlyList<LinkGroup>> GetGroupsAsync()
+        private static readonly JsonSerializerOptions s_jsonOptions = new JsonSerializerOptions
         {
-            return Task.FromResult<IReadOnlyList<LinkGroup>>(_groups.AsReadOnly());
+            WriteIndented = true,
+        };
+
+        private readonly string _filePath;
+
+        /// <summary>Production constructor — uses %APPDATA%\UltimateStartPage\links.json.</summary>
+        public LinkRepository()
+            : this(DefaultFilePath()) { }
+
+        /// <summary>Overload for testing with a custom file path.</summary>
+        public LinkRepository(string filePath)
+        {
+            _filePath = filePath ?? throw new ArgumentNullException(nameof(filePath));
         }
 
-        public Task SaveGroupsAsync(IReadOnlyList<LinkGroup> groups)
-        {
-            _groups.Clear();
-            foreach (var group in groups)
-                _groups.Add(group);
+        private static string DefaultFilePath()
+            => Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                "UltimateStartPage",
+                "links.json");
 
-            return Task.CompletedTask;
+        public async Task<IReadOnlyList<LinkGroup>> GetGroupsAsync()
+        {
+            if (!File.Exists(_filePath))
+                return Array.Empty<LinkGroup>();
+
+            try
+            {
+                var json = await ReadAllTextAsync(_filePath);
+                var groups = JsonSerializer.Deserialize<List<LinkGroup>>(json, s_jsonOptions);
+                return groups ?? (IReadOnlyList<LinkGroup>)Array.Empty<LinkGroup>();
+            }
+            catch (JsonException)
+            {
+                // Corrupt JSON — return empty rather than crashing. Log when logging is wired.
+                return Array.Empty<LinkGroup>();
+            }
         }
 
-        public Task AddLinkAsync(string groupName, SolutionLink link)
+        public async Task SaveGroupsAsync(IReadOnlyList<LinkGroup> groups)
+        {
+            EnsureDirectoryExists();
+            var json = JsonSerializer.Serialize(groups, s_jsonOptions);
+            await WriteAllTextAsync(_filePath, json);
+        }
+
+        public async Task AddLinkAsync(string groupName, SolutionLink link)
         {
             if (string.IsNullOrWhiteSpace(groupName))
                 throw new ArgumentNullException(nameof(groupName));
             if (link == null)
                 throw new ArgumentNullException(nameof(link));
 
-            var group = _groups.Find(g => g.Name == groupName);
+            var groups = (await GetGroupsAsync()).ToList();
+            var group = groups.Find(g => g.Name == groupName);
             if (group == null)
             {
                 group = new LinkGroup(groupName);
-                _groups.Add(group);
+                groups.Add(group);
             }
 
             group.Links.Add(link);
-            return Task.CompletedTask;
+            await SaveGroupsAsync(groups);
         }
 
-        public Task RemoveLinkAsync(string groupName, string filePath)
+        public async Task RemoveLinkAsync(string groupName, string filePath)
         {
-            var group = _groups.Find(g => g.Name == groupName);
+            var groups = (await GetGroupsAsync()).ToList();
+            var group = groups.Find(g => g.Name == groupName);
             if (group != null)
             {
                 var link = group.Links.FirstOrDefault(l => l.FilePath == filePath);
@@ -56,7 +92,22 @@ namespace UltimateStartPage.Core.Services
                     group.Links.Remove(link);
             }
 
-            return Task.CompletedTask;
+            await SaveGroupsAsync(groups);
         }
+
+        private void EnsureDirectoryExists()
+        {
+            var dir = Path.GetDirectoryName(_filePath);
+            if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
+                Directory.CreateDirectory(dir);
+        }
+
+        // net472 does not have File.ReadAllTextAsync — polyfill with Task.Run.
+        private static Task<string> ReadAllTextAsync(string path)
+            => Task.Run(() => File.ReadAllText(path));
+
+        private static Task WriteAllTextAsync(string path, string contents)
+            => Task.Run(() => File.WriteAllText(path, contents));
     }
 }
+

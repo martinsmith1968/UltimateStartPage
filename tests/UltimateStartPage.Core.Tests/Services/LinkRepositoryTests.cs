@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using System.Threading.Tasks;
 using FluentAssertions;
 using UltimateStartPage.Core.Models;
@@ -7,9 +8,23 @@ using Xunit;
 
 namespace UltimateStartPage.Core.Tests.Services
 {
-    public class LinkRepositoryTests
+    public class LinkRepositoryTests : IDisposable
     {
-        private readonly LinkRepository _sut = new LinkRepository();
+        private readonly string _tempFile;
+        private readonly LinkRepository _sut;
+
+        public LinkRepositoryTests()
+        {
+            // Each test instance gets its own isolated temp file — no cross-test pollution.
+            _tempFile = Path.Combine(Path.GetTempPath(), $"usp_test_{Guid.NewGuid():N}.json");
+            _sut = new LinkRepository(_tempFile);
+        }
+
+        public void Dispose()
+        {
+            if (File.Exists(_tempFile))
+                File.Delete(_tempFile);
+        }
 
         // --- GetGroupsAsync ---
 
@@ -160,3 +175,4 @@ namespace UltimateStartPage.Core.Tests.Services
         }
     }
 }
+

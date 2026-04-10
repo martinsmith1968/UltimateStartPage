@@ -307,6 +307,48 @@ All stubs include `// TODO (McManus)` comments with specific implementation guid
 
 ---
 
+### 14. McManus Decisions: ViewModel Implementation  
+
+**Decided:** 2026-04-10  
+**Author:** McManus (.NET Developer)  
+**Status:** For team review
+
+**1. CommunityToolkit.Mvvm — Not Used**
+- Implemented lightweight hand-rolled `ObservableObject` + `RelayCommand` + `AsyncRelayCommand` in `src/UltimateStartPage.Core/Mvvm/`
+- CommunityToolkit.Mvvm 8.x requires .NET 8 (incompatible with net472)
+- CommunityToolkit.Mvvm 7.x source generators require C# 9+ partial properties (Core targets LangVersion 8.0)
+- Hand-rolled solution is <100 lines total, covers all needs, zero external dependencies for MVVM
+
+**2. JSON Library — System.Text.Json 6.0.10**
+- Used per Decision #4 specifications exactly
+- `WriteIndented = true` as specified
+- File: `%APPDATA%\UltimateStartPage\links.json`
+- net472 compatibility via `netstandard2.0` target in package
+- `File.ReadAllText/WriteAllText` wrapped in `Task.Run()` for async polyfill (net472 has no `File.ReadAllTextAsync`)
+- Corrupt JSON returns empty collection silently (log-when-logging-wired pattern)
+
+**3. ICommand — WindowsBase Reference**
+- Added `<Reference Include="WindowsBase" />` to `UltimateStartPage.Core.csproj`
+- `System.Windows.Input.ICommand` lives in `WindowsBase.dll` (.NET Framework 4.7.2 assembly)
+- `Private=True` implicit for framework refs — does not affect VSIX packaging
+
+**4. DI Wiring — Temporary Direct Construction**
+- `StartPageToolWindowControl` constructs `new LinkRepository()` and `new StartPageViewModel(repository)` directly
+- TODO comment for proper AsyncPackage DI wiring in `UltimateStartPagePackage.cs`
+- Full DI wiring deferred until package initialisation flow designed
+
+**5. LinkRepository Test Isolation**
+- Constructor accepts optional `string filePath` parameter
+- LinkRepositoryTests creates unique temp file per test instance, deletes via IDisposable.Dispose()
+- All 18 existing tests preserved with this pattern
+
+**6. ViewModel Remove Pattern — Callback Functions**
+- `LinkGroupViewModel` and `LinkViewModel` receive parent-remove callbacks as `Func<T, Task>` constructor parameters
+- Avoids circular VM references and tight coupling
+- Callbacks are closures over parent `StartPageViewModel` methods (`RemoveGroupAsync`, `RemoveLinkAsync`)
+
+---
+
 ## Governance
 
 - All meaningful changes require team consensus
