@@ -15,6 +15,8 @@ namespace UltimateStartPage.Core.ViewModels
     public class LinkGroupViewModel : ObservableObject
     {
         private string _name = string.Empty;
+        private bool _isRenaming;
+        private string _editingName = string.Empty;
 
         private readonly Func<LinkGroupViewModel, Task> _onRemove;
         private readonly Func<Task> _saveCallback;
@@ -23,13 +25,35 @@ namespace UltimateStartPage.Core.ViewModels
         public string Name
         {
             get => _name;
-            set => SetProperty(ref _name, value);
+            set
+            {
+                if (SetProperty(ref _name, value))
+                {
+                    // Fire-and-forget save — exception handling deferred to logging framework
+                    _ = _saveCallback();
+                }
+            }
+        }
+
+        public bool IsRenaming
+        {
+            get => _isRenaming;
+            set => SetProperty(ref _isRenaming, value);
+        }
+
+        public string EditingName
+        {
+            get => _editingName;
+            set => SetProperty(ref _editingName, value);
         }
 
         public ObservableCollection<LinkViewModel> Links { get; } = new ObservableCollection<LinkViewModel>();
 
         public ICommand AddLinkCommand { get; }
         public ICommand RemoveCommand { get; }
+        public ICommand BeginRenameCommand { get; }
+        public ICommand CommitRenameCommand { get; }
+        public ICommand CancelRenameCommand { get; }
 
         public LinkGroupViewModel(LinkGroup model, Func<LinkGroupViewModel, Task> onRemove, Func<Task> saveCallback, Action<string>? openAction = null)
         {
@@ -41,11 +65,33 @@ namespace UltimateStartPage.Core.ViewModels
             if (model != null)
             {
                 foreach (var link in model.Links)
-                    Links.Add(new LinkViewModel(link, RemoveLinkAsync, _openAction));
+                    Links.Add(new LinkViewModel(link, RemoveLinkAsync, _saveCallback, _openAction));
             }
 
             AddLinkCommand = new AsyncRelayCommand(ExecuteAddLinkAsync);
             RemoveCommand = new AsyncRelayCommand(ExecuteRemoveAsync);
+            BeginRenameCommand = new RelayCommand(ExecuteBeginRename);
+            CommitRenameCommand = new AsyncRelayCommand(ExecuteCommitRenameAsync);
+            CancelRenameCommand = new RelayCommand(ExecuteCancelRename);
+        }
+
+        private void ExecuteBeginRename()
+        {
+            EditingName = _name;
+            IsRenaming = true;
+        }
+
+        private async Task ExecuteCommitRenameAsync()
+        {
+            IsRenaming = false;
+            // Setting Name will trigger save via property setter
+            Name = EditingName;
+        }
+
+        private void ExecuteCancelRename()
+        {
+            IsRenaming = false;
+            EditingName = _name;
         }
 
         /// <summary>Converts this ViewModel back to a domain model for persistence.</summary>
@@ -59,7 +105,7 @@ namespace UltimateStartPage.Core.ViewModels
         private async Task ExecuteAddLinkAsync()
         {
             var newLink = new SolutionLink("New Link", string.Empty);
-            Links.Add(new LinkViewModel(newLink, RemoveLinkAsync, _openAction));
+            Links.Add(new LinkViewModel(newLink, RemoveLinkAsync, _saveCallback, _openAction));
             await _saveCallback();
         }
 

@@ -13,6 +13,57 @@
 
     <UserControl.Resources>
 
+        <!-- BooleanToVisibilityConverter -->
+        <BooleanToVisibilityConverter x:Key="BoolToVis" />
+
+        <!-- Icon button style: small square buttons for edit/delete actions -->
+        <Style x:Key="IconButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Foreground" Value="{DynamicResource {x:Static vsui:VsBrushes.ToolWindowTextKey}}" />
+            <Setter Property="BorderBrush" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Width" Value="24" />
+            <Setter Property="Height" Value="24" />
+            <Setter Property="Margin" Value="2,0" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="FontSize" Value="14" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="IconBorder"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="2">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="IconBorder" Property="Background"
+                                        Value="{DynamicResource {x:Static vsui:VsBrushes.CommandBarHoverKey}}" />
+                                <Setter TargetName="IconBorder" Property="BorderBrush"
+                                        Value="{DynamicResource {x:Static vsui:VsBrushes.CommandBarBorderKey}}" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="IconBorder" Property="Background"
+                                        Value="{DynamicResource {x:Static vsui:VsBrushes.HighlightKey}}" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Inline edit TextBox style -->
+        <Style x:Key="InlineEditTextBoxStyle" TargetType="TextBox">
+            <Setter Property="Background" Value="{DynamicResource {x:Static vsui:VsBrushes.ButtonFaceKey}}" />
+            <Setter Property="Foreground" Value="{DynamicResource {x:Static vsui:VsBrushes.ToolWindowTextKey}}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource {x:Static vsui:VsBrushes.CommandBarBorderKey}}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Padding" Value="4,2" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+        </Style>
+
         <!-- Link tile: custom button template with VS-themed hover state -->
         <Style x:Key="LinkTileButtonStyle" TargetType="Button">
             <Setter Property="Background"       Value="{DynamicResource {x:Static vsui:VsBrushes.ButtonFaceKey}}" />
@@ -23,7 +74,8 @@
             <Setter Property="Margin"           Value="4" />
             <Setter Property="Width"            Value="190" />
             <Setter Property="Height"           Value="58" />
-            <Setter Property="HorizontalContentAlignment" Value="Left" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="VerticalContentAlignment" Value="Stretch" />
             <Setter Property="Cursor"           Value="Hand" />
             <Setter Property="Template">
                 <Setter.Value>
@@ -35,7 +87,7 @@
                                 Padding="{TemplateBinding Padding}"
                                 SnapsToDevicePixels="True">
                             <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
-                                              VerticalAlignment="Center" />
+                                              VerticalAlignment="{TemplateBinding VerticalContentAlignment}" />
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
@@ -54,35 +106,140 @@
             </Setter>
         </Style>
 
-        <!-- Link tile content template (DataContext: LinkViewModel) -->
+        <!-- Link tile content template with edit state (DataContext: LinkViewModel) -->
         <DataTemplate x:Key="LinkTileTemplate" DataType="{x:Type viewmodels:LinkViewModel}">
-            <Button Style="{StaticResource LinkTileButtonStyle}"
-                    Command="{Binding OpenCommand}"
-                    ToolTip="{Binding Path}">
-                <StackPanel>
-                    <TextBlock Text="{Binding Name}"
-                               Foreground="{DynamicResource {x:Static vsui:VsBrushes.ToolWindowTextKey}}"
-                               FontWeight="SemiBold"
-                               TextTrimming="CharacterEllipsis" />
-                    <TextBlock Text="{Binding Path}"
-                               Foreground="{DynamicResource {x:Static vsui:VsBrushes.GrayTextKey}}"
-                               FontSize="10"
-                               Margin="0,2,0,0"
-                               TextTrimming="CharacterEllipsis" />
-                </StackPanel>
-            </Button>
+            <Border Width="190" Height="58" Margin="4"
+                    Background="{DynamicResource {x:Static vsui:VsBrushes.ButtonFaceKey}}"
+                    BorderBrush="{DynamicResource {x:Static vsui:VsBrushes.ToolWindowBorderKey}}"
+                    BorderThickness="1">
+                
+                <!-- Normal view state (IsEditing = false) -->
+                <Button Style="{StaticResource LinkTileButtonStyle}"
+                        Command="{Binding OpenCommand}"
+                        ToolTip="{Binding Path}"
+                        Margin="0" Padding="8,4" Width="Auto" Height="Auto">
+                    <Button.Visibility>
+                        <Binding Path="IsEditing" Converter="{StaticResource BoolToVis}">
+                            <Binding.ConverterParameter>
+                                <x:Static Member="Visibility.Collapsed" />
+                            </Binding.ConverterParameter>
+                        </Binding>
+                    </Button.Visibility>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                            <TextBlock Text="{Binding Name}"
+                                       Foreground="{DynamicResource {x:Static vsui:VsBrushes.ToolWindowTextKey}}"
+                                       FontWeight="SemiBold"
+                                       TextTrimming="CharacterEllipsis" />
+                            <TextBlock Text="{Binding Path}"
+                                       Foreground="{DynamicResource {x:Static vsui:VsBrushes.GrayTextKey}}"
+                                       FontSize="10"
+                                       Margin="0,2,0,0"
+                                       TextTrimming="CharacterEllipsis" />
+                        </StackPanel>
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Top" Margin="4,0,0,0">
+                            <Button Style="{StaticResource IconButtonStyle}"
+                                    Content="✏"
+                                    Command="{Binding BeginEditCommand}"
+                                    ToolTip="Edit link" />
+                            <Button Style="{StaticResource IconButtonStyle}"
+                                    Content="✕"
+                                    Command="{Binding RemoveCommand}"
+                                    ToolTip="Remove link" />
+                        </StackPanel>
+                    </Grid>
+                </Button>
+
+                <!-- Edit state (IsEditing = true) -->
+                <Grid Margin="8,4" Visibility="{Binding IsEditing, Converter={StaticResource BoolToVis}}">
+                    <Grid.InputBindings>
+                        <KeyBinding Key="Return" Command="{Binding CommitEditCommand}" />
+                        <KeyBinding Key="Escape" Command="{Binding CancelEditCommand}" />
+                    </Grid.InputBindings>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+                    <TextBox Grid.Row="0"
+                             Style="{StaticResource InlineEditTextBoxStyle}"
+                             Text="{Binding EditingName, UpdateSourceTrigger=PropertyChanged}"
+                             ToolTip="Name"
+                             Margin="0,0,0,2" />
+                    <TextBox Grid.Row="1"
+                             Style="{StaticResource InlineEditTextBoxStyle}"
+                             Text="{Binding EditingPath, UpdateSourceTrigger=PropertyChanged}"
+                             ToolTip="Path"
+                             FontSize="10"
+                             Margin="0,0,0,2" />
+                    <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,2,0,0">
+                        <Button Style="{StaticResource IconButtonStyle}"
+                                Content="✓"
+                                Command="{Binding CommitEditCommand}"
+                                ToolTip="Save" />
+                        <Button Style="{StaticResource IconButtonStyle}"
+                                Content="✕"
+                                Command="{Binding CancelEditCommand}"
+                                ToolTip="Cancel" />
+                    </StackPanel>
+                </Grid>
+            </Border>
         </DataTemplate>
 
-        <!-- Link group template (DataContext: LinkGroupViewModel) -->
+        <!-- Link group template with rename state (DataContext: LinkGroupViewModel) -->
         <DataTemplate x:Key="LinkGroupTemplate" DataType="{x:Type viewmodels:LinkGroupViewModel}">
             <StackPanel Margin="0,0,0,20">
-                <TextBlock Text="{Binding Name}"
-                           Foreground="{DynamicResource {x:Static vsui:VsBrushes.ToolWindowTextKey}}"
-                           FontSize="13"
-                           FontWeight="SemiBold"
-                           Margin="2,0,0,4" />
+                
+                <!-- Group header: normal state (IsRenaming = false) -->
+                <DockPanel Margin="2,0,0,4" Visibility="{Binding IsRenaming, Converter={StaticResource BoolToVis}, ConverterParameter={x:Static Visibility.Collapsed}}">
+                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                        <Button Style="{StaticResource IconButtonStyle}"
+                                Content="✏"
+                                Command="{Binding BeginRenameCommand}"
+                                ToolTip="Rename group" />
+                        <Button Style="{StaticResource IconButtonStyle}"
+                                Content="🗑"
+                                Command="{Binding RemoveCommand}"
+                                ToolTip="Delete group" />
+                    </StackPanel>
+                    <TextBlock Text="{Binding Name}"
+                               Foreground="{DynamicResource {x:Static vsui:VsBrushes.ToolWindowTextKey}}"
+                               FontSize="13"
+                               FontWeight="SemiBold"
+                               VerticalAlignment="Center" />
+                </DockPanel>
+
+                <!-- Group header: rename state (IsRenaming = true) -->
+                <DockPanel Margin="2,0,0,4" Visibility="{Binding IsRenaming, Converter={StaticResource BoolToVis}}">
+                    <DockPanel.InputBindings>
+                        <KeyBinding Key="Return" Command="{Binding CommitRenameCommand}" />
+                        <KeyBinding Key="Escape" Command="{Binding CancelRenameCommand}" />
+                    </DockPanel.InputBindings>
+                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                        <Button Style="{StaticResource IconButtonStyle}"
+                                Content="✓"
+                                Command="{Binding CommitRenameCommand}"
+                                ToolTip="Save" />
+                        <Button Style="{StaticResource IconButtonStyle}"
+                                Content="✕"
+                                Command="{Binding CancelRenameCommand}"
+                                ToolTip="Cancel" />
+                    </StackPanel>
+                    <TextBox Style="{StaticResource InlineEditTextBoxStyle}"
+                             Text="{Binding EditingName, UpdateSourceTrigger=PropertyChanged}"
+                             FontSize="13"
+                             FontWeight="SemiBold"
+                             VerticalAlignment="Center" />
+                </DockPanel>
+
                 <Separator Background="{DynamicResource {x:Static vsui:VsBrushes.ToolWindowBorderKey}}"
                            Margin="0,0,0,6" />
+
+                <!-- Links + Add Link button -->
                 <ItemsControl ItemsSource="{Binding Links}"
                               ItemTemplate="{StaticResource LinkTileTemplate}">
                     <ItemsControl.ItemsPanel>
@@ -91,6 +248,17 @@
                         </ItemsPanelTemplate>
                     </ItemsControl.ItemsPanel>
                 </ItemsControl>
+
+                <!-- Add Link button -->
+                <Button Content="＋ Add Link"
+                        Command="{Binding AddLinkCommand}"
+                        Padding="8,4"
+                        Margin="4"
+                        HorizontalAlignment="Left"
+                        Background="{DynamicResource {x:Static vsui:VsBrushes.ButtonFaceKey}}"
+                        Foreground="{DynamicResource {x:Static vsui:VsBrushes.ButtonTextKey}}"
+                        BorderBrush="{DynamicResource {x:Static vsui:VsBrushes.ToolWindowBorderKey}}"
+                        ToolTip="Add a new link to this group" />
             </StackPanel>
         </DataTemplate>
 
@@ -106,11 +274,15 @@
                 Padding="14,8">
             <DockPanel>
                 <Button DockPanel.Dock="Right"
-                        Content="Add Group"
+                        Content="＋ Add Group"
                         Command="{Binding AddGroupCommand}"
                         Padding="12,4"
                         Margin="8,0,0,0"
-                        VerticalAlignment="Center" />
+                        VerticalAlignment="Center"
+                        Background="{DynamicResource {x:Static vsui:VsBrushes.ButtonFaceKey}}"
+                        Foreground="{DynamicResource {x:Static vsui:VsBrushes.ButtonTextKey}}"
+                        BorderBrush="{DynamicResource {x:Static vsui:VsBrushes.ToolWindowBorderKey}}"
+                        ToolTip="Add a new group to organize your links" />
                 <TextBlock Text="Ultimate Start Page"
                            Foreground="{DynamicResource {x:Static vsui:VsBrushes.ToolWindowTextKey}}"
                            FontSize="16"
@@ -140,7 +312,7 @@
                 </ItemsControl>
 
                 <!-- Empty state — visible when HasGroups is False -->
-                <TextBlock Text="No links yet — click Add Group to get started"
+                <TextBlock Text="No links yet — click ＋ Add Group to get started"
                            Foreground="{DynamicResource {x:Static vsui:VsBrushes.GrayTextKey}}"
                            HorizontalAlignment="Center"
                            VerticalAlignment="Top"

@@ -25,6 +25,7 @@ namespace UltimateStartPage.Core.ViewModels
         public bool HasGroups => Groups.Count > 0;
 
         public ICommand AddGroupCommand { get; }
+        public ICommand RemoveGroupCommand { get; }
 
         public StartPageViewModel(ILinkRepository repository, Action<string>? openAction = null)
         {
@@ -32,6 +33,7 @@ namespace UltimateStartPage.Core.ViewModels
             _openAction = openAction;
             Groups.CollectionChanged += (_, __) => OnPropertyChanged(nameof(HasGroups));
             AddGroupCommand = new AsyncRelayCommand(ExecuteAddGroupAsync);
+            RemoveGroupCommand = new AsyncRelayCommand<LinkGroupViewModel>(RemoveGroupAsync);
         }
 
         /// <summary>
@@ -53,10 +55,13 @@ namespace UltimateStartPage.Core.ViewModels
             await SaveAsync();
         }
 
-        private async Task RemoveGroupAsync(LinkGroupViewModel vm)
+        private async Task RemoveGroupAsync(LinkGroupViewModel? vm)
         {
-            Groups.Remove(vm);
-            await SaveAsync();
+            if (vm != null)
+            {
+                Groups.Remove(vm);
+                await SaveAsync();
+            }
         }
 
         private async Task SaveAsync()

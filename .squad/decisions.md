@@ -349,6 +349,69 @@ All stubs include `// TODO (McManus)` comments with specific implementation guid
 
 ---
 
+### 15. CRUD ViewModels — Naming Contract and Pattern
+
+**Decided:** 2026-04-10  
+**Author:** McManus (.NET Developer)  
+**Status:** Implemented (pending Keaton approval)
+
+- **Decision:** Implement CRUD command infrastructure (RemoveGroupCommand, Begin/Commit/Cancel for rename/edit) with strict naming contract. Use fire-and-forget save pattern on property setters.
+- **Naming Contract (CRITICAL):** 
+  - `StartPageViewModel.RemoveGroupCommand` (AsyncRelayCommand<LinkGroupViewModel>)
+  - `LinkGroupViewModel`: IsRenaming, EditingName, BeginRenameCommand, CommitRenameCommand, CancelRenameCommand
+  - `LinkViewModel`: IsEditing, EditingName, EditingPath, BeginEditCommand, CommitEditCommand, CancelEditCommand
+- **Pattern:** Begin (set state, copy to buffer) → User edits buffer → Commit (apply buffer to real property, save) or Cancel (discard buffer)
+- **AsyncRelayCommand<T>:** New generic command class with `where T : class` constraint for C# 8.0 compatibility
+- **Fire-and-Forget Saves:** Property setters call `_ = _saveCallback()` to keep UI responsive. No blocking I/O in setters. Exception handling deferred to logging framework.
+- **Commit Commands:** Do NOT explicitly call save; setting Name/Path properties triggers saves via setters. Multiple saves on Name+Path change acceptable (idempotent).
+- **Test Status:** 77/77 passing (28 instantiations updated for LinkViewModel constructor signature change)
+- **Breaking Change:** LinkViewModel constructor now requires `Func<Task> saveCallback` parameter (3rd position)
+- **Deferred:** Error handling, save throttling, undo/redo, optimistic UI (Sprint 3+)
+
+---
+
+### 16. CRUD UI Patterns — DataTrigger State Switching
+
+**Decided:** 2026-04-10  
+**Author:** Verbal (WPF/UI Developer)  
+**Status:** Implemented (pending Keaton approval)
+
+- **Decision:** Use DataTrigger-based state switching (IsEditing/IsRenaming) for View/Edit mode toggling. Inline TextBox overlays replace display content. Icon buttons for actions. Complete VS theme integration via DynamicResource + VsBrushes.
+- **State Switching:** `<DataTrigger Binding="{Binding IsEditing}" Value="true">` controls visibility of edit controls (no code-behind logic)
+- **Inline Edit Pattern:** Same space used for view/edit via DataTrigger. Two-way bindings with `UpdateSourceTrigger=PropertyChanged`. Commit/Cancel buttons + keyboard shortcuts.
+- **KeyBindings:** Enter = commit, Escape = cancel (wired to InputBindings on container)
+- **Icon Buttons:** 24×24 transparent buttons with VS theme hover/press states (CommandBarHoverKey, HighlightKey). Icons as Unicode symbols (✏✕✓🗑＋).
+- **Add Button Behavior:** Create new items immediately in edit state (IsEditing=true), not blank items. Zero-click-to-type UX.
+- **VS Theming:** Every brush uses `{DynamicResource {x:Static vsui:VsBrushes.*Key}}`. No hardcoded colors. Live theme-change aware.
+- **ViewModel Contract:** Requires exact property/command names from Decision #15 (McManus)
+- **Manual UI Tests:** Verify Enter/Escape keyboard shortcuts, icon button commands, visibility state switching, theme switching (Light/Dark/Blue)
+- **Deferred:** Focus management, validation feedback, delete confirmation, drag-drop, custom icon font (future iterations)
+
+---
+
+### 17. CRUD Test Coverage — 23 Anticipatory Tests
+
+**Decided:** 2026-04-10  
+**Author:** Fenster (QA Tester)  
+**Status:** Implemented (pending Keaton approval)
+
+- **Decision:** Add 23 anticipatory tests for McManus's CRUD commands before implementation. Tests passed immediately (implementation complete).
+- **Test Breakdown:**
+  - LinkGroupViewModel: 9 tests (Begin/Commit/Cancel Rename, IsRenaming, EditingName)
+  - LinkViewModel: 14 tests (Begin/Commit/Cancel Edit, IsEditing, EditingName, EditingPath, constructor guard)
+- **Build Fix:** AsyncRelayCommand<T> had C# 8.0 nullable type parameter issue. Fixed with `where T : class` constraint.
+- **File Rename:** AsyncRelayCommand{T}.cs → AsyncRelayCommandT.cs (braces in filename problematic)
+- **Test Results:** 77/77 passing (23 new tests, 54 existing tests preserved)
+- **CanExecute Decisions:** Commands always enabled. UI controls visibility/availability via IsEditing/IsRenaming state. Validation deferred to UI or future enhancement.
+- **Edge Cases Observed:** Empty EditingName/EditingPath allowed at command level (no validation). No undo/redo support.
+- **Recommendations (Non-blocking):** 
+  - Consider CanExecute predicates for validation (e.g., disable Commit if field empty)
+  - Validation error feedback belongs to UI layer, not ViewModel
+  - Coverage is complete for current implementation
+- **Test Sign-Off Required:** Keaton (review) + McManus (save callback pattern confirmation)
+
+---
+
 ## Governance
 
 - All meaningful changes require team consensus

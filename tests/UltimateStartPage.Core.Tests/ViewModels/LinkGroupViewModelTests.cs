@@ -200,5 +200,146 @@ namespace UltimateStartPage.Core.Tests.ViewModels
 
             removedVm.Should().Be(sut);
         }
+
+        // anticipatory — requires McManus CRUD commands
+        [Fact]
+        public void BeginRenameCommand_SetsIsRenamingTrue()
+        {
+            var model = new LinkGroup("Original Name");
+            var sut = new LinkGroupViewModel(model, _ => Task.CompletedTask, () => Task.CompletedTask);
+
+            sut.BeginRenameCommand.Execute(null);
+
+            sut.IsRenaming.Should().BeTrue();
+        }
+
+        // anticipatory — requires McManus CRUD commands
+        [Fact]
+        public void BeginRenameCommand_CopiesNameToEditingName()
+        {
+            var model = new LinkGroup("Original Name");
+            var sut = new LinkGroupViewModel(model, _ => Task.CompletedTask, () => Task.CompletedTask);
+
+            sut.BeginRenameCommand.Execute(null);
+
+            sut.EditingName.Should().Be("Original Name");
+        }
+
+        // anticipatory — requires McManus CRUD commands
+        [Fact]
+        public async Task CommitRenameCommand_SetsIsRenamingFalse()
+        {
+            var model = new LinkGroup("Original");
+            var sut = new LinkGroupViewModel(model, _ => Task.CompletedTask, () => Task.CompletedTask);
+            sut.BeginRenameCommand.Execute(null);
+            sut.EditingName = "Updated Name";
+
+            sut.CommitRenameCommand.Execute(null);
+            await Task.Delay(50); // Give async command time to complete
+
+            sut.IsRenaming.Should().BeFalse();
+        }
+
+        // anticipatory — requires McManus CRUD commands
+        [Fact]
+        public async Task CommitRenameCommand_AppliesEditingNameToName()
+        {
+            var model = new LinkGroup("Original");
+            var sut = new LinkGroupViewModel(model, _ => Task.CompletedTask, () => Task.CompletedTask);
+            sut.BeginRenameCommand.Execute(null);
+            sut.EditingName = "Updated Name";
+
+            sut.CommitRenameCommand.Execute(null);
+            await Task.Delay(50); // Give async command time to complete
+
+            sut.Name.Should().Be("Updated Name");
+        }
+
+        // anticipatory — requires McManus CRUD commands
+        [Fact]
+        public async Task CommitRenameCommand_TriggersSaveCallback()
+        {
+            var model = new LinkGroup("Original");
+            var saveCalled = false;
+            Task SaveCallback()
+            {
+                saveCalled = true;
+                return Task.CompletedTask;
+            }
+
+            var sut = new LinkGroupViewModel(model, _ => Task.CompletedTask, SaveCallback);
+            sut.BeginRenameCommand.Execute(null);
+            sut.EditingName = "Updated Name";
+
+            sut.CommitRenameCommand.Execute(null);
+            await Task.Delay(50); // Give async command time to complete
+
+            saveCalled.Should().BeTrue();
+        }
+
+        // anticipatory — requires McManus CRUD commands
+        [Fact]
+        public void CancelRenameCommand_SetsIsRenamingFalse()
+        {
+            var model = new LinkGroup("Original");
+            var sut = new LinkGroupViewModel(model, _ => Task.CompletedTask, () => Task.CompletedTask);
+            sut.BeginRenameCommand.Execute(null);
+            sut.EditingName = "Modified but will be discarded";
+
+            sut.CancelRenameCommand.Execute(null);
+
+            sut.IsRenaming.Should().BeFalse();
+        }
+
+        // anticipatory — requires McManus CRUD commands
+        [Fact]
+        public void CancelRenameCommand_DoesNotChangeOriginalName()
+        {
+            var model = new LinkGroup("Original");
+            var sut = new LinkGroupViewModel(model, _ => Task.CompletedTask, () => Task.CompletedTask);
+            sut.BeginRenameCommand.Execute(null);
+            sut.EditingName = "Modified but will be discarded";
+
+            sut.CancelRenameCommand.Execute(null);
+
+            sut.Name.Should().Be("Original");
+        }
+
+        // anticipatory — requires McManus CRUD commands
+        [Fact]
+        public void IsRenaming_Setter_RaisesPropertyChanged()
+        {
+            var model = new LinkGroup("Test");
+            var sut = new LinkGroupViewModel(model, _ => Task.CompletedTask, () => Task.CompletedTask);
+            var eventRaised = false;
+            sut.PropertyChanged += (s, e) =>
+            {
+                if (e.PropertyName == nameof(LinkGroupViewModel.IsRenaming))
+                    eventRaised = true;
+            };
+
+            sut.BeginRenameCommand.Execute(null);
+
+            eventRaised.Should().BeTrue();
+        }
+
+        // anticipatory — requires McManus CRUD commands
+        [Fact]
+        public void EditingName_Setter_RaisesPropertyChanged()
+        {
+            var model = new LinkGroup("Test");
+            var sut = new LinkGroupViewModel(model, _ => Task.CompletedTask, () => Task.CompletedTask);
+            sut.BeginRenameCommand.Execute(null);
+            var eventRaised = false;
+            sut.PropertyChanged += (s, e) =>
+            {
+                if (e.PropertyName == nameof(LinkGroupViewModel.EditingName))
+                    eventRaised = true;
+            };
+
+            sut.EditingName = "New Value";
+
+            eventRaised.Should().BeTrue();
+        }
     }
 }

@@ -189,3 +189,133 @@
 - AsyncPackage `AddService` + `GetLinkRepository()` retrieval is a valid VS2022 pattern. Not MEF composition, but service-provider based. Acceptable for this scope.
 - `openAction` callback threading through ViewModels is clean — allows Core to remain VS-agnostic.
 - `Task.Delay` in tests is a known anti-pattern but tolerable for async void ICommand execution testing. Better alternatives exist (ManualResetEventSlim, TaskCompletionSource) but require rework.
+
+### 2025-07-17 — McManus EnvDTE Wiring Revision
+
+**Reviewed:** McManus's revision of Verbal's rejected EnvDTE wiring
+**Verdict:** APPROVED
+
+**Context:** Verbal's original work item was rejected because `OpenSolutionInVS()` method was missing from `StartPageToolWindowControl.xaml.cs`. McManus assigned to fix (Verbal locked out per team rules).
+
+**What was reviewed in `StartPageToolWindowControl.xaml.cs`:**
+
+1. **`OpenSolutionInVS(string path)` method — PASS**
+   - Method exists (lines 26-42), accepts path parameter
+   - Calls `dte.Solution.Open(path)` correctly
+   - Wrapped in try-catch with comment for future logging
+
+2. **`ThreadHelper.ThrowIfNotOnUIThread()` — PASS**
+   - Called immediately at line 28, before any EnvDTE access
+   - Correct placement per VSSDK threading requirements
+
+3. **Null DTE handling — PASS**
+   - `dte` null-checked at line 31: `if (dte == null) return;`
+   - Graceful silent return — no crash
+
+4. **`openAction` wired to ViewModel — PASS**
+   - Line 19: `new StartPageViewModel(repository, OpenSolutionInVS)`
+   - Callback correctly passed as second constructor parameter
+
+5. **Using directives — PASS**
+   - `using EnvDTE;` present (line 3)
+   - `using Microsoft.VisualStudio.Shell;` present (line 4)
+
+6. **Core boundary — PASS**
+   - Core ViewModels only received `openAction` parameter threading (approved previously)
+   - Core changes are additive: IOException catch, RemoveCommand async pattern, `openAction` pass-through
+   - No VS SDK dependencies leaked into Core
+
+**Tests:** 54/54 passing (0 failures, 0 skipped)
+
+**Implementation quality:**
+- Clean, minimal code (44 lines total file)
+- Exception handling follows project pattern (silent + future logging comment)
+- No unnecessary complexity
+
+### 2025-07-18 — CRUD Sprint Work Item Reviews
+
+**Work Item 1 — McManus: CRUD ViewModel Commands**
+**Verdict:** APPROVED
+
+**What was reviewed:**
+- `LinkGroupViewModel.cs`: `IsRenaming`, `EditingName`, `BeginRenameCommand`, `CommitRenameCommand`, `CancelRenameCommand`
+- `LinkViewModel.cs`: `IsEditing`, `EditingName`, `EditingPath`, `BeginEditCommand`, `CommitEditCommand`, `CancelEditCommand`
+- `StartPageViewModel.cs`: `RemoveGroupCommand` using `AsyncRelayCommand<LinkGroupViewModel>`
+- `AsyncRelayCommandT.cs`: Generic async relay command with `where T : class` constraint
+- Fire-and-forget `_ = _saveCallback()` in property setters
+
+**Correctness:** ✓
+- State machine flow is correct: Begin copies current values to editing fields → edit → Commit applies back (or Cancel discards)
+- `CommitRenameAsync` sets `IsRenaming = false` BEFORE setting `Name` — correct order (prevents recursive save triggers during rename state)
+- `RemoveGroupCommand` correctly typed as `AsyncRelayCommand<LinkGroupViewModel>` and wired to `RemoveGroupAsync(vm)`
+
+**Fire-and-forget pattern:**
+- `_ = _saveCallback()` in `Name`/`Path` setters is acceptable here — this is a known tech debt pattern documented in Decision #14
+- No thread-safety concerns: WPF binding setters are UI-thread only; callbacks execute on same thread
+- Exception swallowing documented in code comment
+
+**`where T : class` constraint:**
+- Required to resolve C# 8.0 nullable reference warning with `(T?)parameter` cast
+- Does NOT block value-type usage in this project — `LinkGroupViewModel` is a class
+- If value-type commands needed later, create `AsyncRelayCommand<T>` overload without constraint
+
+---
+
+**Work Item 2 — Verbal: CRUD XAML UI**
+**Verdict:** REJECTED
+
+**Critical Bug:**
+- `BooleanToVisibilityConverter` does NOT support `ConverterParameter` for inversion
+- Lines 122-126 attempt inverted binding: show when `IsEditing=false`, hide when `IsEditing=true`
+- Built-in WPF `BooleanToVisibilityConverter` ignores the parameter entirely
+- **Result:** Normal tile view is ALWAYS visible (even during edit), overlapping the edit form
+
+**Affected locations:**
+- `StartPageToolWindowControl.xaml` lines 122-126: Link tile normal view visibility
+- `StartPageToolWindowControl.xaml` line 198: Group header normal view visibility (same issue)
+
+**Fix required:** Create `InverseBooleanToVisibilityConverter` or use `DataTrigger` style pattern (as correctly done for empty state at lines 304-310)
+
+**What was correct (non-blocking):**
+- ✓ VS theming via `DynamicResource VsBrushes.*Key` throughout
+- ✓ Unicode icons (✏ ✕ ✓ 🗑 ＋) render correctly
+- ✓ `KeyBinding` syntax for Enter/Escape is correct
+- ✓ `RemoveGroupCommand` bound with `CommandParameter={Binding}` — NOT present, uses parameterless binding which routes through `AsyncRelayCommand` (correct for RemoveCommand per-group)
+- ✓ Edit state grid uses correct visibility binding (line 158)
+
+**Fix Owner:** McManus (Verbal is locked out per reviewer rules)
+
+---
+
+**Work Item 3 — Fenster: CRUD Tests**
+**Verdict:** APPROVED WITH CONDITIONS
+
+**What was reviewed:**
+- `LinkGroupViewModelTests.cs`: 22 tests (13 original + 9 CRUD rename tests)
+- `LinkViewModelTests.cs`: 32 tests (17 original + 14 CRUD edit tests, including 1 Theory)
+- `AsyncRelayCommandT.cs`: `where T : class` constraint fix
+
+**Test quality:**
+- ✓ State machine coverage thorough: BeginX → state true, CommitX → state false + values applied, CancelX → state false + values unchanged
+- ✓ PropertyChanged verification for `IsRenaming`, `IsEditing`, `EditingName`, `EditingPath`
+- ✓ SaveCallback trigger verification via closure capture
+- ⚠️ `Task.Delay(50)` pattern used in 7 async tests — acceptable but fragile
+
+**`where T : class` constraint:**
+- Correct fix for C# 8.0 nullable reference types with generic parameter
+- Does restrict to reference types, but `LinkGroupViewModel` IS a reference type
+- If value-type commands needed, add non-generic `AsyncRelayCommand<int>` etc. — not needed now
+
+**Condition:**
+- Flag `Task.Delay(50)` as tech debt for later replacement with `TaskCompletionSource` pattern
+- Files: `LinkGroupViewModelTests.cs` (lines 85, 105, 146, 238, 275), `LinkViewModelTests.cs` (lines 248, 262, 276, 301)
+- Owner for future fix: Verbal (not Fenster — author lockout)
+
+**Test counts verified:** 77 total tests, 0 failures
+
+---
+
+**Patterns noted:**
+- Edit state machine (Begin→Commit/Cancel) is clean and matches WPF inline-editing conventions
+- Fire-and-forget save in setters defers exception handling to future logging — documented trade-off
+- `BooleanToVisibilityConverter` does NOT support inversion — Verbal should have used DataTrigger or custom converter

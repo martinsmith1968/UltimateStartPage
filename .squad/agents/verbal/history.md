@@ -254,3 +254,108 @@ private void OpenSolutionInVS(string path)
 - StartPageViewModel.cs (openAction passthrough)
 - StartPageToolWindowControl.xaml.cs (OpenSolutionInVS implementation)
 
+---
+
+### 2026-04-10 — Full CRUD UI Implementation
+
+#### Overview
+Built complete Add/Edit/Delete UI for groups and links with inline editing states, VS theme integration, and keyboard navigation support.
+
+#### Architecture Pattern: DataTrigger State Switching
+Used `DataTrigger` on `IsEditing` (links) and `IsRenaming` (groups) to swap between view/edit modes without code-behind logic:
+- **View mode (default):** Show display labels + edit/delete icon buttons
+- **Edit mode:** Show TextBox controls + commit/cancel buttons
+- **Visibility switching:** `BooleanToVisibilityConverter` with collapsed fallback
+
+#### Group Header CRUD
+**Normal State (IsRenaming = false):**
+- Group name as bold TextBlock (13pt)
+- ✏ pencil icon → `BeginRenameCommand`
+- 🗑 trash icon → `RemoveCommand`
+
+**Rename State (IsRenaming = true):**
+- TextBox bound to `EditingName` (two-way, PropertyChanged)
+- ✓ commit button → `CommitRenameCommand`
+- ✕ cancel button → `CancelRenameCommand`
+- Enter key → commit, Escape key → cancel (via KeyBinding)
+
+#### Link Tile CRUD
+**Normal State (IsEditing = false):**
+- 190×58 tile with Name (bold) and Path (gray, 10pt)
+- Tile is clickable → `OpenCommand`
+- ✏ edit icon → `BeginEditCommand`
+- ✕ remove icon → `RemoveCommand`
+
+**Edit State (IsEditing = true):**
+- Two TextBox controls (Name, Path) bound to `EditingName`/`EditingPath`
+- ✓ commit button → `CommitEditCommand`
+- ✕ cancel button → `CancelEditCommand`
+- Enter key → commit, Escape key → cancel
+- When a new link is added, it appears immediately in edit state (handled by ViewModel)
+
+#### Add Buttons
+- **Add Group:** Prominent "＋ Add Group" button in header (right-aligned) → `StartPageViewModel.AddGroupCommand`
+- **Add Link:** "＋ Add Link" button at bottom of each group → `LinkGroupViewModel.AddLinkCommand`
+
+#### Styles & Resources
+**IconButtonStyle:**
+- 24×24 transparent buttons for edit/delete actions
+- Hover: CommandBarHoverKey background + CommandBarBorderKey border
+- Press: HighlightKey background
+
+**InlineEditTextBoxStyle:**
+- ButtonFaceKey background, ToolWindowTextKey foreground
+- CommandBarBorderKey border
+- Used for all rename/edit TextBoxes
+
+**LinkTileButtonStyle:**
+- Retained existing tile button style with VS theming
+
+#### VS Theme Compliance
+All colors use `{DynamicResource {x:Static vsui:VsBrushes.*Key}}`:
+- Backgrounds: ToolWindowBackgroundKey, ButtonFaceKey
+- Text: ToolWindowTextKey, GrayTextKey
+- Borders: ToolWindowBorderKey, CommandBarBorderKey
+- Hover/Press: CommandBarHoverKey, HighlightKey
+
+#### Key Binding Pattern
+Used `<Grid.InputBindings>` with `<KeyBinding>` for keyboard shortcuts:
+```xml
+<Grid.InputBindings>
+    <KeyBinding Key="Return" Command="{Binding CommitEditCommand}" />
+    <KeyBinding Key="Escape" Command="{Binding CancelEditCommand}" />
+</Grid.InputBindings>
+```
+Applied to both group rename DockPanel and link edit Grid.
+
+#### Dependencies on McManus
+The following ViewModel properties/commands are referenced but not yet implemented by McManus:
+
+**LinkGroupViewModel:**
+- `IsRenaming` (bool)
+- `EditingName` (string, two-way)
+- `BeginRenameCommand`
+- `CommitRenameCommand`
+- `CancelRenameCommand`
+
+**LinkViewModel:**
+- `IsEditing` (bool)
+- `EditingName` (string, two-way)
+- `EditingPath` (string, two-way)
+- `BeginEditCommand`
+- `CommitEditCommand`
+- `CancelEditCommand`
+
+UI is fully wired and ready — will light up as soon as McManus adds these to ViewModels.
+
+#### Unicode Icons
+Used Unicode symbols to avoid image dependencies:
+- ✏ (U+270F) — edit/pencil
+- ✕ (U+2715) — delete/cancel
+- ✓ (U+2713) — commit/save
+- 🗑 (U+1F5D1) — trash/delete group
+- ＋ (U+FF0B) — add (full-width plus)
+
+#### Files Modified
+- `src/UltimateStartPage.VS2022/ToolWindows/StartPageToolWindowControl.xaml` — complete CRUD UI with inline editing
+

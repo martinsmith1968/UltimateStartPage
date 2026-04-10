@@ -122,3 +122,38 @@
 - Consider LinkViewModel integration tests with real Process.Start (smoke test, not unit test)
 - Logging infrastructure (when added) should wrap fire-and-forget exceptions in LinkViewModel and LinkGroupViewModel RemoveCommand
 - All 54 tests remain passing after McManus DI wiring and Verbal EnvDTE injection changes
+
+### Session: CRUD Command Tests for ViewModels — 2025-07-16
+
+**Anticipatory Test Coverage — McManus CRUD Commands**
+- Added 23 new tests across LinkGroupViewModel (9) and LinkViewModel (14) for in-line editing features
+- All tests passed on first run — McManus's implementation was already complete when tests were written
+- **LinkGroupViewModel tests (9 new)**: BeginRenameCommand, CommitRenameCommand, CancelRenameCommand behavior, property setters (IsRenaming, EditingName), PropertyChanged events
+- **LinkViewModel tests (14 new)**: BeginEditCommand, CommitEditCommand, CancelEditCommand behavior, property setters (IsEditing, EditingName, EditingPath), PropertyChanged events, save callback propagation
+- **Total suite**: 77 tests passing (was 54) — 23 new tests added
+
+**Key Edge Cases Tested:**
+- BeginRename/BeginEdit copies current values to editing properties (Name→EditingName, Path→EditingPath)
+- CommitRename/CommitEdit applies editing values to real properties and triggers save callbacks
+- CancelRename/CancelEdit discards editing values without changing original properties
+- IsRenaming/IsEditing state management (set to true on begin, false on commit/cancel)
+- PropertyChanged notifications for IsRenaming, EditingName, IsEditing, EditingName, EditingPath
+- Save callback propagation: CommitRename triggers save once (via Name setter), CommitEdit triggers save twice (via Name and Path setters)
+
+**McManus Implementation Pattern (Already Landed):**
+- `BeginRenameCommand` / `BeginEditCommand`: RelayCommand (synchronous), copies values, sets editing flag
+- `CommitRenameCommand` / `CommitEditCommand`: AsyncRelayCommand, sets flag false, applies edits (which trigger saves via property setters)
+- `CancelRenameCommand` / `CancelEditCommand`: RelayCommand (synchronous), sets flag false, restores original values to editing properties (discard changes)
+- Save callback: fire-and-forget pattern via property setters (Name, Path) using `_ = _saveCallback();`
+- Properties: IsRenaming, EditingName (LinkGroupViewModel); IsEditing, EditingName, EditingPath (LinkViewModel)
+
+**Build Fix Applied:**
+- Fixed C# 8.0 nullable type parameter issue in `AsyncRelayCommand<T>` by adding `where T : class` constraint
+- Renamed file from `AsyncRelayCommand{T}.cs` to `AsyncRelayCommandT.cs` (braces in filenames cause issues)
+- Generic command used by StartPageViewModel's RemoveGroupCommand
+
+**Test Framework Consistency:**
+- All tests follow xUnit + FluentAssertions 6.x pattern per Decision #5
+- Async command tests use `await Task.Delay(50)` to give async void Execute() time to complete
+- PropertyChanged tests register handlers before mutation, verify event fired and new value in one block
+

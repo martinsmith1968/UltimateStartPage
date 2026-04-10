@@ -295,3 +295,86 @@ This is the standard VS extension pattern for opening solutions programmatically
 **Files Changed:**
 - `src/UltimateStartPage.VS2022/ToolWindows/StartPageToolWindowControl.xaml.cs` (OpenSolutionInVS method, constructor wiring, using directives)
 
+### 2026-04-10 — CRUD ViewModels Implementation
+
+**Context:**
+- Verbal is building XAML dialogs for full CRUD (Create, Read, Update, Delete) functionality in parallel
+- Added commands and properties to ViewModels to support inline rename/edit operations
+- Implemented naming contract so XAML bindings align exactly with ViewModel surface
+
+**Implementation:**
+
+1. **AsyncRelayCommand<T>** — New parameterized async command type
+   - Added `AsyncRelayCommand<T>.cs` to support commands that take parameters (e.g., RemoveGroupCommand)
+   - Constrained to `where T : class` for C# 8 nullable compatibility (can't use `T?` without class constraint in LangVersion 8.0)
+   - Prevents re-entrant execution while command is running (same as non-generic version)
+   - Pattern: `new AsyncRelayCommand<LinkGroupViewModel>(RemoveGroupAsync)`
+
+2. **StartPageViewModel** — Added RemoveGroupCommand
+   - `RemoveGroupCommand` (ICommand) — AsyncRelayCommand<LinkGroupViewModel> that removes a group and saves
+   - Takes LinkGroupViewModel parameter via CommandParameter binding from XAML
+   - Null-safe: checks parameter before removing
+
+3. **LinkGroupViewModel** — Added rename functionality
+   - `Name` property setter now triggers save callback (fire-and-forget pattern with `_ = _saveCallback()`)
+   - `IsRenaming` (bool) — UI state flag for rename mode
+   - `EditingName` (string) — in-progress rename buffer
+   - `BeginRenameCommand` (RelayCommand) — sets IsRenaming=true, copies Name→EditingName
+   - `CommitRenameCommand` (AsyncRelayCommand) — sets IsRenaming=false, applies EditingName→Name (which triggers save via setter)
+   - `CancelRenameCommand` (RelayCommand) — sets IsRenaming=false, discards EditingName
+   - Pattern: Begin copies current to editing buffer, Commit applies buffer to property (triggering save), Cancel discards
+
+4. **LinkViewModel** — Added edit functionality and save callback
+   - Added required `Func<Task> saveCallback` constructor parameter (breaking change for tests)
+   - `Name` and `Path` property setters now trigger save callback (fire-and-forget)
+   - `IsEditing` (bool) — UI state flag for edit mode
+   - `EditingName` and `EditingPath` (string) — in-progress edit buffers
+   - `BeginEditCommand` (RelayCommand) — sets IsEditing=true, copies Name/Path→EditingName/EditingPath
+   - `CommitEditCommand` (AsyncRelayCommand) — sets IsEditing=false, applies EditingName/EditingPath→Name/Path (triggering saves)
+   - `CancelEditCommand` (RelayCommand) — sets IsEditing=false, discards EditingName/EditingPath
+   - Updated LinkGroupViewModel to pass saveCallback when constructing LinkViewModel instances
+
+5. **Test Updates**
+   - Updated all 28 LinkViewModel test instantiations to include saveCallback parameter: `() => Task.CompletedTask`
+   - All 77 Core tests passing (54 existing + 23 ViewModel tests)
+   - No new test coverage added (Fenster is handling CRUD command tests in parallel per task spec)
+
+**Naming Contract (for Verbal's XAML bindings):**
+
+LinkGroupViewModel:
+- `IsRenaming` → ToggleButton.IsChecked or visibility converter
+- `EditingName` → TextBox.Text (two-way binding)
+- `BeginRenameCommand` → rename button Command
+- `CommitRenameCommand` → TextBox InputBinding (Enter key) / confirm button Command
+- `CancelRenameCommand` → TextBox InputBinding (Escape key) / cancel button Command
+
+LinkViewModel:
+- `IsEditing` → edit mode toggle visibility
+- `EditingName` / `EditingPath` → edit TextBox.Text (two-way bindings)
+- `BeginEditCommand` → edit button Command
+- `CommitEditCommand` → confirm button Command / InputBinding
+- `CancelEditCommand` → cancel button Command / InputBinding
+
+StartPageViewModel:
+- `RemoveGroupCommand` → delete button Command with CommandParameter={Binding}
+
+**Architectural Decisions:**
+- **Fire-and-forget saves in property setters:** Name/Path setters use `_ = _saveCallback()` pattern. Exception handling deferred to future logging framework. Acceptable risk: worst case is lost edit if save fails silently.
+- **Commit commands don't explicitly save:** CommitRenameCommand/CommitEditCommand set Name/Path properties, which trigger save via setters. Avoids double-save issue.
+- **Editing buffers avoid direct property mutation:** EditingName/EditingPath hold in-progress state. Cancel discards without triggering save. Commit copies to real properties.
+- **BeginEdit copies to buffer immediately:** Ensures Cancel can restore original value if user starts typing then cancels.
+
+**Files Changed:**
+- `src/UltimateStartPage.Core/Mvvm/AsyncRelayCommand{T}.cs` (new parameterized async command)
+- `src/UltimateStartPage.Core/ViewModels/StartPageViewModel.cs` (RemoveGroupCommand)
+- `src/UltimateStartPage.Core/ViewModels/LinkGroupViewModel.cs` (rename commands and properties, Name setter save callback)
+- `src/UltimateStartPage.Core/ViewModels/LinkViewModel.cs` (edit commands and properties, Name/Path setter save callbacks, saveCallback parameter)
+- `tests/UltimateStartPage.Core.Tests/ViewModels/LinkViewModelTests.cs` (updated 28 constructor calls with saveCallback parameter)
+
+**Validation:**
+- ✅ All 77 Core tests passing
+- ✅ net472 / C# 8 compatible (no LangVersion 9 features, nullable with class constraint)
+- ✅ Naming contract documented for Verbal
+- ✅ Fire-and-forget save pattern consistent across ViewModels
+- ✅ AsyncRelayCommand<T> prevents re-entrant execution
+
