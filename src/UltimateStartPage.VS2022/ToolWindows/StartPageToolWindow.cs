@@ -1,5 +1,7 @@
+using System;
 using System.Runtime.InteropServices;
 using Microsoft.VisualStudio.Shell;
+using UltimateStartPage.Core.Services;
 
 namespace UltimateStartPage.VS2022.ToolWindows
 {
@@ -9,9 +11,21 @@ namespace UltimateStartPage.VS2022.ToolWindows
         public StartPageToolWindow() : base(null)
         {
             Caption = "Ultimate Start Page";
-            // Content is set here so VS can create the pane without the package being fully loaded.
-            // Verbal owns the XAML; this is a placeholder until the real control is designed.
-            Content = new StartPageToolWindowControl();
+            // Content will be created lazily when the ILinkRepository is available
+        }
+
+        protected override void Initialize()
+        {
+            base.Initialize();
+
+            // Get ILinkRepository from the package
+            var package = Package as UltimateStartPagePackage;
+            var repository = package?.GetLinkRepository();
+
+            if (repository != null)
+            {
+                Content = new StartPageToolWindowControl(repository);
+            }
         }
     }
 }

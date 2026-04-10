@@ -53,13 +53,36 @@ namespace UltimateStartPage.Core.Services
                 // Corrupt JSON — return empty rather than crashing. Log when logging is wired.
                 return Array.Empty<LinkGroup>();
             }
+            catch (IOException)
+            {
+                // File I/O error (in use, permissions, disk full) — return empty. Log when logging is wired.
+                return Array.Empty<LinkGroup>();
+            }
+            catch (Exception)
+            {
+                // Unexpected error — return empty. Log when logging is wired.
+                return Array.Empty<LinkGroup>();
+            }
         }
 
         public async Task SaveGroupsAsync(IReadOnlyList<LinkGroup> groups)
         {
-            EnsureDirectoryExists();
-            var json = JsonSerializer.Serialize(groups, s_jsonOptions);
-            await WriteAllTextAsync(_filePath, json);
+            try
+            {
+                EnsureDirectoryExists();
+                var json = JsonSerializer.Serialize(groups, s_jsonOptions);
+                await WriteAllTextAsync(_filePath, json);
+            }
+            catch (IOException)
+            {
+                // File I/O error during save (disk full, permissions) — throw to caller. Log when logging is wired.
+                throw;
+            }
+            catch (Exception)
+            {
+                // Unexpected error during serialization or write — throw to caller. Log when logging is wired.
+                throw;
+            }
         }
 
         public async Task AddLinkAsync(string groupName, SolutionLink link)

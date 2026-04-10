@@ -1,6 +1,7 @@
 using System;
 using System.Diagnostics;
 using System.Threading.Tasks;
+using System.Windows.Input;
 using UltimateStartPage.Core.Models;
 using UltimateStartPage.Core.Mvvm;
 
@@ -15,6 +16,7 @@ namespace UltimateStartPage.Core.ViewModels
         private string _path = string.Empty;
 
         private readonly Func<LinkViewModel, Task> _onRemove;
+        private readonly Action<string>? _openAction;
         private readonly RelayCommand _openCommand;
 
         public string Name
@@ -33,17 +35,18 @@ namespace UltimateStartPage.Core.ViewModels
             }
         }
 
-        public System.Windows.Input.ICommand OpenCommand => _openCommand;
-        public System.Windows.Input.ICommand RemoveCommand { get; }
+        public ICommand OpenCommand => _openCommand;
+        public ICommand RemoveCommand { get; }
 
-        public LinkViewModel(SolutionLink model, Func<LinkViewModel, Task> onRemove)
+        public LinkViewModel(SolutionLink model, Func<LinkViewModel, Task> onRemove, Action<string>? openAction = null)
         {
             _onRemove = onRemove ?? throw new ArgumentNullException(nameof(onRemove));
+            _openAction = openAction;
             _name = model?.Name ?? string.Empty;
             _path = model?.FilePath ?? string.Empty;
 
             _openCommand = new RelayCommand(ExecuteOpen, () => !string.IsNullOrWhiteSpace(_path));
-            RemoveCommand = new RelayCommand(ExecuteRemove);
+            RemoveCommand = new AsyncRelayCommand(ExecuteRemoveAsync);
         }
 
         public SolutionLink ToModel()
@@ -54,20 +57,33 @@ namespace UltimateStartPage.Core.ViewModels
             if (string.IsNullOrWhiteSpace(_path))
                 return;
 
-            // TODO (VS-layer): For opening .sln files inside VS, wire EnvDTE.Solution.Open()
-            // or IVsSolution.OpenSolutionFile() via the VS service provider. That belongs in
-            // UltimateStartPage.VS2022, not Core. Process.Start opens with the shell default.
-            try
+            // If a custom open action was provided (typically from VS2022 layer using EnvDTE),
+            // use it. Otherwise, fall back to Process.Start which opens with the shell default.
+            if (_openAction != null)
             {
-                Process.Start(new ProcessStartInfo(_path) { UseShellExecute = true });
+                try
+                {
+                    _openAction(_path);
+                }
+                catch (Exception)
+                {
+                    // Silently swallow — UI feedback on open failure is a future concern.
+                }
             }
-            catch (Exception)
+            else
             {
-                // Silently swallow — UI feedback on open failure is a future concern.
+                try
+                {
+                    Process.Start(new ProcessStartInfo(_path) { UseShellExecute = true });
+                }
+                catch (Exception)
+                {
+                    // Silently swallow — UI feedback on open failure is a future concern.
+                }
             }
         }
 
-        private void ExecuteRemove()
-            => _ = _onRemove(this);
+        private async Task ExecuteRemoveAsync()
+            => await _onRemove(this);
     }
 }

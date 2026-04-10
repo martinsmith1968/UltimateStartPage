@@ -93,3 +93,99 @@
 **Still open:**
 - `IncludeAssemblyInVSIXContainer=false` on VS2022 project output — McManus must F5 validate.
 - ViewModels live in VS2022 project temporarily — McManus migrates to Core with CommunityToolkit.Mvvm.
+
+### 2025-07-16 — ViewModel Implementation Review
+
+**Reviewed:** McManus's ViewModel implementation (MVVM infra, 3 ViewModels, LinkRepository impl, tests, code-behind wiring)
+**Verdict:** APPROVED — no blocking issues
+
+**What was right:**
+- Hand-rolled ObservableObject/RelayCommand/AsyncRelayCommand is correct. Justified: CommunityToolkit.Mvvm 8.x requires .NET 8, 7.x source generators require C# 9+ partial properties. net472 + C# 8 = incompatible.
+- RelayCommand has no CommandManager.RequerySuggested dependency — correctly decoupled from WPF for Core library.
+- AsyncRelayCommand re-entrancy guard via _isExecuting flag. Standard async void ICommand pattern.
+- LinkRepository: JSON in %APPDATA%, injectable path for tests, handles missing file + corrupt JSON, EnsureDirectoryExists on save, Task.Run polyfills for net472.
+- System.Text.Json 6.0.10 (netstandard2.0) confirmed net472 compatible.
+- ILinkRepository injected cleanly into StartPageViewModel. LoadAsync clears-then-populates. Commands wired correctly.
+- Callback pattern (Func<T, Task>) for child-to-parent ViewModel communication is clean. No memory leak — parent owns children.
+- All 7 new ViewModel tests meaningful (load, empty state, HasGroups, AddGroupCommand, reload idempotency, nested links). 25/25 passing.
+- Both TODOs (Process.Start fallback, MEF DI wiring) are specific, attributed, and correctly scoped to their target layers.
+- Full net472 compatibility verified — no .NET Core+ only APIs used.
+
+**Nits (non-blocking):**
+1. Fire-and-forget `_ = callback(this)` in ExecuteRemove swallows async exceptions — log when logging exists.
+2. GetGroupsAsync catches JsonException but not IOException (locked file).
+3. LinkGroupViewModel uses fully-qualified System.Windows.Input.ICommand — cosmetic.
+
+**Patterns noted:**
+- Hand-rolling lightweight MVVM infrastructure is the right call when toolkit compatibility is blocked. Clean, testable, zero external dependency.
+- Task.Run polyfills for missing async file APIs on net472 is the standard pattern. Well-documented in code.
+- Callback-based child-to-parent communication avoids events and the leak risks that come with them.
+
+### 2025-07-17 — Sprint 2 Work Item Reviews
+
+**Work Item 1 — McManus: MEF/DI wiring + 3 nits**
+**Verdict:** APPROVED
+
+**What was reviewed:**
+- `LinkRepository.cs`: IOException catch added (load returns empty, save throws) — correct asymmetry
+- `LinkGroupViewModel.cs`, `LinkViewModel.cs`: `ExecuteRemoveAsync` pattern using `AsyncRelayCommand` — fire-and-forget fixed
+- `LinkGroupViewModel.cs`: Uses `using System.Windows.Input;` with unqualified `ICommand` — clean
+- `UltimateStartPagePackage.cs`: DI wiring via `AddService<ILinkRepository>()` — correct AsyncPackage pattern
+- `StartPageToolWindow.cs`: Retrieves repository from package via `GetLinkRepository()` — clean
+- `StartPageToolWindowControl.xaml.cs`: Constructor requires `ILinkRepository`, throws on null — proper guard
+
+**Correctness:** ✓ All implementations match claimed behavior
+**Consistency:** ✓ DI flow is coherent: Package → ToolWindow → Control → ViewModel
+**net472 compatibility:** ✓ `<Nullable>enable</Nullable>` is set on Core.csproj — annotations valid
+**Thread safety:** N/A for this item (DI wiring is on main thread)
+
+---
+
+**Work Item 2 — Verbal: EnvDTE wiring + stale file cleanup**
+**Verdict:** REJECTED
+
+**Critical Issue:**
+- `StartPageToolWindowControl.xaml.cs` does NOT contain `OpenSolutionInVS()` method
+- No `EnvDTE.DTE.Solution.Open()` call present
+- No `ThreadHelper.ThrowIfNotOnUIThread()` call present
+- The `openAction` parameter IS threaded through ViewModels (verified in `LinkViewModel.cs`, `LinkGroupViewModel.cs`, `StartPageViewModel.cs`)
+- But the VS2022 layer never wires it — `StartPageToolWindowControl` passes `openAction: null` implicitly
+
+**What was verified:**
+- ✓ `src/UltimateStartPage.VS2022/ViewModels/` directory deleted — PASS
+- ✓ `openAction` parameter added to all 3 ViewModel constructors — PASS
+- ✗ EnvDTE wiring in `StartPageToolWindowControl.xaml.cs` — MISSING
+
+**Conflict check with McManus:**
+- No conflicts. McManus touched DI constructor (`ILinkRepository`), Verbal's work (openAction) would layer on top.
+- Final state of ViewModels is coherent — openAction flows through but is unused.
+
+**Replacement:** McManus to implement `OpenSolutionInVS()` method in `StartPageToolWindowControl.xaml.cs` with `ThreadHelper.ThrowIfNotOnUIThread()` and wire to ViewModel.
+
+---
+
+**Work Item 3 — Fenster: LinkGroupViewModel and LinkViewModel isolation tests**
+**Verdict:** APPROVED WITH CONDITIONS
+
+**What was reviewed:**
+- `LinkGroupViewModelTests.cs`: 13 test methods — all meaningful, cover constructor, commands, callbacks, PropertyChanged
+- `LinkViewModelTests.cs`: 15 test methods (16 cases via Theory) — constructor, Path/Name setters, CanExecuteChanged, callbacks
+
+**Test quality:**
+- ✓ Callback testing via closure capture — correct pattern
+- ✓ `ICommand.CanExecuteChanged` verification — correct pattern
+- ⚠️ `Task.Delay(50)` in async tests — acceptable for ICommand.Execute() which uses async void, but fragile
+
+**Condition:**
+- Replace `Task.Delay(50)` with explicit completion tracking where possible. For now acceptable, but flag as tech debt for Fenster to revisit.
+- File: `LinkGroupViewModelTests.cs` lines 85, 105, 146
+- Owner for fix: Hockney (if available) or Fenster in next sprint
+
+**Test counts verified:** 13 + 16 = 29 ViewModel tests. Total suite: 54 tests, 0 failures.
+
+---
+
+**Patterns noted:**
+- AsyncPackage `AddService` + `GetLinkRepository()` retrieval is a valid VS2022 pattern. Not MEF composition, but service-provider based. Acceptable for this scope.
+- `openAction` callback threading through ViewModels is clean — allows Core to remain VS-agnostic.
+- `Task.Delay` in tests is a known anti-pattern but tolerable for async void ICommand execution testing. Better alternatives exist (ManualResetEventSlim, TaskCompletionSource) but require rework.

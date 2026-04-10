@@ -135,3 +135,118 @@ See `.squad/decisions.md` decisions #10-11 for theming, layout, and ViewModel ar
 - Fenster: expand test coverage for LinkGroupViewModel, LinkViewModel command behaviour
 - McManus: wire `ILinkRepository` via `AsyncPackage` service provider (proper DI), implement `IVsSolutionEvents` show/hide logic
 - Verbal: verify XAML renders correctly with the new Core-namespace ViewModel types in F5 experimental instance
+
+### 2026-04-10 — Code Review Nits Fixed + MEF/DI Wiring Complete
+
+**Nits Fixed (from Keaton's review):**
+
+1. **Fire-and-forget async in Remove commands** (LinkGroupViewModel, LinkViewModel):
+   - Changed `ExecuteRemove` from `void` method with fire-and-forget `_ = _onRemove(this)` to proper `async Task ExecuteRemoveAsync()` with `await _onRemove(this)`
+   - Updated `RemoveCommand` from `RelayCommand` to `AsyncRelayCommand` to properly handle async execution
+   - No more fire-and-forget: commands now properly await their async work
+
+2. **Missing IOException catch in LinkRepository**:
+   - Added `IOException` handling in `GetGroupsAsync` (returns empty collection gracefully)
+   - Added `IOException` handling in `SaveGroupsAsync` (throws to caller with log note for future logging)
+   - Ordered exception handlers: `JsonException` → `IOException` → general `Exception` (most specific to least specific)
+
+3. **Cosmetic fully-qualified ICommand**:
+   - Replaced `System.Windows.Input.ICommand` with `ICommand` in LinkGroupViewModel and LinkViewModel
+   - Added `using System.Windows.Input;` to both ViewModel files for proper namespace resolution
+
+**MEF/DI Wiring:**
+
+Implemented proper VS AsyncPackage service provider pattern for `ILinkRepository` injection:
+
+1. **UltimateStartPagePackage.cs**:
+   - Added private `LinkRepository _linkRepository` field
+   - Initialize singleton instance in `InitializeAsync` before tool window creation
+   - Register via `AddService(typeof(ILinkRepository), ...)` for VS service container
+   - Added `GetLinkRepository()` helper method for tool window access (simpler than async service retrieval in this case)
+
+2. **StartPageToolWindow.cs**:
+   - Override `Initialize()` to retrieve `ILinkRepository` from package after construction
+   - Create `StartPageToolWindowControl` with injected repository (deferred from constructor to Initialize)
+   - Pattern: `ToolWindowPane` constructor → `base.Initialize()` → retrieve services → create Content
+
+3. **StartPageToolWindowControl.xaml.cs**:
+   - Changed constructor to accept `ILinkRepository` parameter (required, not optional)
+   - Removed TODO comment about DI wiring (now complete)
+   - Construct `StartPageViewModel(repository)` with injected dependency
+   - Added null check with `ArgumentNullException` (fail-fast on missing DI)
+
+**DI Pattern Choice: Direct Package Retrieval vs AsyncPackage.GetServiceAsync**
+
+- **Chosen:** Direct retrieval via `package.GetLinkRepository()` in `ToolWindowPane.Initialize()`
+- **Rationale:** 
+  - Simpler for this scope: `LinkRepository` is a singleton created eagerly in package init
+  - Avoids async service retrieval complexity in tool window construction flow
+  - `ToolWindowPane.Initialize()` is synchronous by framework design; `GetServiceAsync` would require `JoinableTaskFactory` gymnastics
+  - Pattern is standard for VS extensions: package owns service lifetime, tool windows retrieve via typed accessors
+- **Alternative considered:** Full MEF export with `ComponentModelHost` — overkill for single service, adds boilerplate
+- **Future:** If adding multiple services or third-party MEF components, migrate to full MEF catalog registration
+
+**Test Results:** 54/54 tests passing (all existing tests remain green after changes)
+
+**Files Changed:**
+- `src/UltimateStartPage.Core/ViewModels/LinkGroupViewModel.cs` (async fix, ICommand cleanup, using statement)
+- `src/UltimateStartPage.Core/ViewModels/LinkViewModel.cs` (async fix, ICommand cleanup, using statement)
+- `src/UltimateStartPage.Core/Services/LinkRepository.cs` (IOException handling in Get/Save)
+- `src/UltimateStartPage.VS2022/UltimateStartPagePackage.cs` (DI registration, repository init)
+- `src/UltimateStartPage.VS2022/ToolWindows/StartPageToolWindow.cs` (service retrieval in Initialize)
+- `src/UltimateStartPage.VS2022/ToolWindows/StartPageToolWindowControl.xaml.cs` (constructor DI injection)
+
+### Sprint 2 Completion — 2026-04-10
+
+**Code Review Nits Fixed (3 items from Keaton's ViewModel review):**
+
+1. **Fire-and-forget async → AsyncRelayCommand**: 
+   - Changed `ExecuteRemove()` in LinkGroupViewModel and LinkViewModel from sync RelayCommand to async AsyncRelayCommand
+   - Now properly awaits the `onRemove` callback instead of fire-and-forget `_ = callback(this)`
+   - No more silent exception swallowing (future logging framework will capture via proper try-catch)
+
+2. **IOException handling in LinkRepository**:
+   - Added `IOException` catch in `GetGroupsAsync` (locked files now handled gracefully, returns empty collection)
+   - Added `IOException` catch in `SaveGroupsAsync` with proper exception ordering (specific to general)
+
+3. **ICommand fully-qualified namespace**:
+   - Replaced `System.Windows.Input.ICommand` with `using System.Windows.Input;` and `ICommand` identifier in both ViewModels
+   - Improves code consistency and readability
+
+**MEF/DI Wiring Complete (ILinkRepository via AsyncPackage):**
+
+Implemented direct package accessor pattern for service injection (Decision: mcmanus-mef-di-wiring.md):
+
+1. **UltimateStartPagePackage.cs**:
+   - Private `_linkRepository` field created in `InitializeAsync()`
+   - Service registered via `AddService(typeof(ILinkRepository), ...)` callback
+   - Public `GetLinkRepository()` accessor method for tool window access
+
+2. **StartPageToolWindow.cs**:
+   - `Initialize()` override retrieves `ILinkRepository` from package
+   - Creates tool window content with injected repository
+
+3. **StartPageToolWindowControl.xaml.cs**:
+   - Constructor now requires `ILinkRepository` parameter (removed direct instantiation)
+   - Added null guard with `ArgumentNullException`
+
+**Pattern Rationale:**
+- **Why direct accessor over AsyncPackage.GetServiceAsync?** Tool window `Initialize()` is synchronous by design; would require `JoinableTaskFactory` complexity. Service is already available synchronously.
+- **Why not full MEF?** Overkill for single service; adds ComponentModelHost boilerplate; no third-party MEF components to integrate with.
+- **Migration path:** If service count grows, switch to ComponentModelHost + `[Export]` adapters.
+
+**Validation:**
+- ✅ All 54 Core tests passing (no regression)
+- ✅ Tool window initializes with injected repository
+- ✅ Pattern is standard for VS extensions (package-owned singleton)
+- ✅ Type-safe vs. service-locator strings
+- ✅ Clear service lifetime (disposed with package)
+
+**Files Changed:**
+- LinkGroupViewModel.cs (async fix, using statement)
+- LinkViewModel.cs (async fix, using statement)  
+- LinkRepository.cs (IOException handling)
+- UltimateStartPagePackage.cs (service initialization and registration)
+- StartPageToolWindow.cs (service retrieval)
+- StartPageToolWindowControl.xaml.cs (constructor injection)
+

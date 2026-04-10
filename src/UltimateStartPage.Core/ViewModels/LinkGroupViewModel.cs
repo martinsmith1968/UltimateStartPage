@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Threading.Tasks;
+using System.Windows.Input;
 using UltimateStartPage.Core.Models;
 using UltimateStartPage.Core.Mvvm;
 
@@ -17,6 +18,7 @@ namespace UltimateStartPage.Core.ViewModels
 
         private readonly Func<LinkGroupViewModel, Task> _onRemove;
         private readonly Func<Task> _saveCallback;
+        private readonly Action<string>? _openAction;
 
         public string Name
         {
@@ -26,23 +28,24 @@ namespace UltimateStartPage.Core.ViewModels
 
         public ObservableCollection<LinkViewModel> Links { get; } = new ObservableCollection<LinkViewModel>();
 
-        public System.Windows.Input.ICommand AddLinkCommand { get; }
-        public System.Windows.Input.ICommand RemoveCommand { get; }
+        public ICommand AddLinkCommand { get; }
+        public ICommand RemoveCommand { get; }
 
-        public LinkGroupViewModel(LinkGroup model, Func<LinkGroupViewModel, Task> onRemove, Func<Task> saveCallback)
+        public LinkGroupViewModel(LinkGroup model, Func<LinkGroupViewModel, Task> onRemove, Func<Task> saveCallback, Action<string>? openAction = null)
         {
             _onRemove = onRemove ?? throw new ArgumentNullException(nameof(onRemove));
             _saveCallback = saveCallback ?? throw new ArgumentNullException(nameof(saveCallback));
+            _openAction = openAction;
             _name = model?.Name ?? string.Empty;
 
             if (model != null)
             {
                 foreach (var link in model.Links)
-                    Links.Add(new LinkViewModel(link, RemoveLinkAsync));
+                    Links.Add(new LinkViewModel(link, RemoveLinkAsync, _openAction));
             }
 
             AddLinkCommand = new AsyncRelayCommand(ExecuteAddLinkAsync);
-            RemoveCommand = new RelayCommand(ExecuteRemove);
+            RemoveCommand = new AsyncRelayCommand(ExecuteRemoveAsync);
         }
 
         /// <summary>Converts this ViewModel back to a domain model for persistence.</summary>
@@ -56,7 +59,7 @@ namespace UltimateStartPage.Core.ViewModels
         private async Task ExecuteAddLinkAsync()
         {
             var newLink = new SolutionLink("New Link", string.Empty);
-            Links.Add(new LinkViewModel(newLink, RemoveLinkAsync));
+            Links.Add(new LinkViewModel(newLink, RemoveLinkAsync, _openAction));
             await _saveCallback();
         }
 
@@ -66,7 +69,7 @@ namespace UltimateStartPage.Core.ViewModels
             await _saveCallback();
         }
 
-        private void ExecuteRemove()
-            => _ = _onRemove(this);
+        private async Task ExecuteRemoveAsync()
+            => await _onRemove(this);
     }
 }

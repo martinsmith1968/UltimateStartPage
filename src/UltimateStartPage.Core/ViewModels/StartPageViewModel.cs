@@ -16,6 +16,7 @@ namespace UltimateStartPage.Core.ViewModels
     public class StartPageViewModel : ObservableObject
     {
         private readonly ILinkRepository _repository;
+        private readonly Action<string>? _openAction;
 
         public ObservableCollection<LinkGroupViewModel> Groups { get; } =
             new ObservableCollection<LinkGroupViewModel>();
@@ -25,9 +26,10 @@ namespace UltimateStartPage.Core.ViewModels
 
         public ICommand AddGroupCommand { get; }
 
-        public StartPageViewModel(ILinkRepository repository)
+        public StartPageViewModel(ILinkRepository repository, Action<string>? openAction = null)
         {
             _repository = repository ?? throw new ArgumentNullException(nameof(repository));
+            _openAction = openAction;
             Groups.CollectionChanged += (_, __) => OnPropertyChanged(nameof(HasGroups));
             AddGroupCommand = new AsyncRelayCommand(ExecuteAddGroupAsync);
         }
@@ -64,6 +66,6 @@ namespace UltimateStartPage.Core.ViewModels
         }
 
         private LinkGroupViewModel CreateGroupViewModel(LinkGroup group)
-            => new LinkGroupViewModel(group, RemoveGroupAsync, SaveAsync);
+            => new LinkGroupViewModel(group, RemoveGroupAsync, SaveAsync, _openAction);
     }
 }

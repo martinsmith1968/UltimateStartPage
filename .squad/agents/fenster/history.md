@@ -69,3 +69,56 @@
 - UNC reachability: abstract and test the abstraction; real network tests are environment-dependent.
 - VS package activation: manual smoke test checklist; automated only with dedicated VS CI agent.
 - Concurrent settings access: document as known risk, mitigate with lock or channel in production code.
+
+### Session: LinkGroupViewModel and LinkViewModel Isolation Tests — 2025-07-16
+
+**Test Coverage Expansion — ViewModel Layer**
+- Created `ViewModels/LinkGroupViewModelTests.cs` with 13 tests covering: constructor with model/null, name setting, links population, empty group, null guard clauses (onRemove/saveCallback), AddLinkCommand execution/save-callback, RemoveLink logic/save-callback, Name PropertyChanged, ToModel round-trip, RemoveCommand callback invocation.
+- Created `ViewModels/LinkViewModelTests.cs` with 15 tests (16 test cases due to Theory with 2 InlineData) covering: constructor name/path setting, null model handling, null guard (onRemove), OpenCommand CanExecute logic (empty/whitespace path), Path non-null guarantee, Name/Path PropertyChanged, Path setter triggers OpenCommand.CanExecuteChanged, ToModel round-trip, RemoveCommand callback, OpenCommand wired up, parameterised edge cases for disabled state.
+- Total test count: **54 test cases** (28 methods added this session: 13 LinkGroupViewModel + 15 LinkViewModel). All passing.
+
+**Test Patterns for Callback-Based ViewModels**
+- Callbacks (`Func<T, Task>` for remove, `Func<Task>` for save) tested via closure capture — simple bool flag or reference capture to verify invocation.
+- Async command execution timing: `Task.Delay(50)` polyfill to give `async void Execute()` time to complete before assertion (no WPF dispatcher in xUnit runner).
+- PropertyChanged testing: register handler before mutation, verify `eventRaised` flag and new value in one assertion block.
+- `ICommand.CanExecuteChanged` testing: register handler, mutate dependent property (e.g., Path), verify event raised and CanExecute result changed.
+
+**Edge Cases Tested**
+- Null models: both ViewModels accept null model gracefully (empty string fallback for Name/Path).
+- Null callbacks: guard clauses enforced via `ArgumentNullException` with `.WithParameterName()` assertions.
+- Empty/whitespace paths: OpenCommand CanExecute returns false for `string.Empty`, `"   "`, and `null`.
+- Collection mutation: RemoveLink removes correct item by reference, preserves order of remaining items.
+- ToModel round-trip: ViewModels can serialize back to domain models with current state (name/path changes applied).
+
+**Keaton's Review — Addressed**
+- All minimum requirements met:
+  - LinkGroupViewModel: constructor sets Name, Links populated, AddLinkCommand adds link, RemoveLink removes correct link, PropertyChanged fires on Name change, empty group produces empty Links.
+  - LinkViewModel: constructor sets Path and DisplayName (Name), OpenCommand wired up, Path never null from valid SolutionLink, OpenCommand disabled on empty/whitespace path.
+- Test framework: xUnit + NSubstitute + FluentAssertions 6.x as specified.
+- Target: net472 as specified.
+- All tests passing.
+
+### Session: Sprint 2 Completion — 2026-04-10
+
+**LinkGroupViewModel and LinkViewModel Unit Tests — 28 New Tests**
+- **LinkGroupViewModelTests.cs**: 13 comprehensive tests covering constructor, property mutations, command execution, callback invocation, collection handling, and model round-trips.
+- **LinkViewModelTests.cs**: 15 tests covering OpenCommand CanExecute logic (path validation), RemoveCommand callbacks, PropertyChanged notifications, and fallback behavior (Process.Start when no VS action).
+- **Test framework**: xUnit + NSubstitute + FluentAssertions 6.x per Decision #5.
+- **Edge cases tested**: Null models, null callbacks, empty/whitespace paths, collection mutation, model serialization.
+- **Total suite**: 54 tests passing (100% green across all three agents' work items).
+
+**Key Patterns Established:**
+- Callback-based ViewModel testing: closure capture to verify async callback invocation
+- PropertyChanged testing: handler registration before mutation, event verification, property value assertion in single block
+- ICommand.CanExecuteChanged testing: property mutation triggers event, CanExecute result changes
+- Async command patterns: Task.Delay(50) to give async void Execute() time to complete before assertion (no WPF dispatcher in xUnit)
+
+**Keaton Review Follow-up:**
+- Approved LinkGroupViewModel and LinkViewModel tests as meeting all minimum requirements
+- Test coverage now includes: parent-child callback communication, command enable/disable logic, model conversion, edge cases
+- Deferred concerns (fire-and-forget async logging, UNC path reachability, concurrent settings) documented as future enhancements
+
+**Notes for Future Sessions:**
+- Consider LinkViewModel integration tests with real Process.Start (smoke test, not unit test)
+- Logging infrastructure (when added) should wrap fire-and-forget exceptions in LinkViewModel and LinkGroupViewModel RemoveCommand
+- All 54 tests remain passing after McManus DI wiring and Verbal EnvDTE injection changes
