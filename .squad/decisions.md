@@ -153,6 +153,48 @@
 
 ---
 
+### 9. Keaton Scaffold Review: APPROVED (Mandatory Follow-ups)
+
+**Decided:** 2026-04-10  
+**Owner:** Keaton (Team Lead)  
+**Status:** Accepted (with mandatory issue resolution)
+
+- **Verdict:** Architecture is sound. Scaffold unblocks parallel work. Three medium-severity issues must be resolved before merge.
+
+**Issues (Mandatory Before Merge):**
+
+1. **LinkRepository.cs Comment Contradiction**
+   - **File:** `src/UltimateStartPage.Core/Services/LinkRepository.cs` (line 9)
+   - **Problem:** Comment references `WritableSettingsStore` for persistence, contradicting Decision #4 (JSON file in `%APPDATA%\UltimateStartPage\`)
+   - **Fix:** Update comment to reference JSON file persistence per Decision #4
+   - **Assigned:** Verbal
+   - **Severity:** Medium (decision contradiction)
+
+2. **Missing FluentAssertions Package**
+   - **File:** `tests/UltimateStartPage.Core.Tests/UltimateStartPage.Core.Tests.csproj`
+   - **Problem:** FluentAssertions NuGet not referenced; tests use basic `Assert.Equal`/`Assert.Throws` instead of fluent API, violating Decision #5
+   - **Fix:** Add `FluentAssertions` NuGet; refactor tests to use fluent assertions (`.Should().Be()`, `.Should().Throw()`); add `coverlet.collector`
+   - **Assigned:** Fenster (QA owns test infrastructure)
+   - **Severity:** Medium (decision violation)
+
+3. **IncludeAssemblyInVSIXContainer Set to false**
+   - **File:** `src/UltimateStartPage.VS2022/UltimateStartPage.VS2022.csproj` (line 21)
+   - **Problem:** `IncludeAssemblyInVSIXContainer` is `false`; standard VSIX templates use `true`. Risk: extension DLL may not be packaged
+   - **Fix:** Validate during F5 prototyping. If VSIX deployment fails, flip to `true`
+   - **Assigned:** Verbal (first to F5 debug)
+   - **Severity:** Medium (potential build/deployment bug)
+
+**Approved For:**
+- ✅ UI work — Verbal can start immediately on XAML replacement and ViewModel
+- ✅ Parallel work — scaffold architecture unblocks team
+
+**Notes (Non-blocking):**
+- CommunityToolkit.Mvvm deferred until ViewModel layer designed
+- SolutionLink/LinkGroup enhancements (SortOrder, IsPinned, IsExpanded) deferred to later iteration
+- ProvideToolWindow document-well docking validated during F5 per Decision #2
+
+---
+
 ## Governance
 
 - All meaningful changes require team consensus

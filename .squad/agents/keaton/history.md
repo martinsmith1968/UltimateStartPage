@@ -12,6 +12,28 @@
 
 > Append new learnings here after each session.
 
+### 2026-04-10 — Scaffold Review
+
+**Reviewed:** McManus's solution scaffold (all projects, models, services, tool window, tests)
+**Verdict:** APPROVED with mandatory follow-ups
+
+**What was right:**
+- Architecture matches all decisions: AsyncPackage, ToolWindowPane, net472, separate VSIX, [17.0,18.0) manifest range.
+- Package attributes correct: `AllowsBackgroundLoading`, `ProvideAutoLoad` with `BackgroundLoad`, `ProvideToolWindow`.
+- InitializeAsync correctly uses `SwitchToMainThreadAsync` and `FindToolWindowAsync`.
+- ILinkRepository interface is clean — async, returns `IReadOnlyList<T>`, good granularity.
+- ToolWindow stub is minimal and ready for Verbal.
+
+**Issues found:**
+1. LinkRepository.cs comment references `WritableSettingsStore` — contradicts Decision #4 (JSON in %APPDATA%). Assigned to Verbal/Fenster.
+2. FluentAssertions missing from test project — violates Decision #5. Assigned to Fenster.
+3. `IncludeAssemblyInVSIXContainer=false` — potentially wrong, needs F5 validation. Assigned to Verbal.
+
+**Patterns noted:**
+- McManus produced a clean scaffold on first attempt. No structural rework needed.
+- Reviewer lockout works — issues assigned to Verbal/Fenster, not back to McManus.
+- Document-well docking (`Window = vsWindowKindMainWindow`) is a known risk that needs prototyping.
+
 ### 2026-04-10 — Initial Architecture Assessment
 
 **VS Start Page Mechanism (Dead):**
