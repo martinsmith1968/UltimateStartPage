@@ -126,6 +126,33 @@
 
 ---
 
+### 8. Solution Scaffold: Core Library + VSIX Architecture
+
+**Decided:** 2025-07-14  
+**Owner:** McManus (.NET Developer)  
+**Status:** Accepted
+
+- **Decision:** Scaffold initial solution with three projects:
+  - `UltimateStartPage.Core` (net472, SDK-style): Models, services, zero VS SDK dependencies
+  - `UltimateStartPage.VS2022` (net472, legacy csproj): AsyncPackage, ToolWindowPane, VSIX manifest
+  - `UltimateStartPage.Core.Tests` (net472, SDK-style): xUnit + NSubstitute test suite
+- **Key Choices:**
+  - Core TFM: `net472` (matches VS2022 extension host platform)
+  - VSIX csproj: Legacy (non-SDK) format with `PackageReference` NuGet (SDK-style VSSDK not supported)
+  - Package base class: `AsyncPackage` with `[ProvideAutoLoad(NoSolution, BackgroundLoad)]`
+  - Auto-load trigger: Shows start page when VS opens with no solution
+  - VSIX manifest: `[17.0, 18.0)` for VS2022 only
+  - Nullable annotations: Enabled on Core; models use `string?` for honesty with parameterless constructors
+- **Test Status:** 4/4 xUnit tests passing (Core.Tests project)
+- **Architecture:** Decoupled Core from VS SDK; VSIX project adapts VS-specific services
+- **Next Steps:**
+  - Verbal: Design real start page UI (XAML replacement)
+  - Fenster: Expand test coverage (LinkRepository, serialization tests)
+  - McManus: Implement WritableSettingsStore integration, verify VSIX loads in VS2022 experimental instance
+  - Keaton: Architectural review and sign-off before feature work
+
+---
+
 ## Governance
 
 - All meaningful changes require team consensus
