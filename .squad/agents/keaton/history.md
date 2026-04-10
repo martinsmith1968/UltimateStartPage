@@ -319,3 +319,37 @@
 - Edit state machine (Begin→Commit/Cancel) is clean and matches WPF inline-editing conventions
 - Fire-and-forget save in setters defers exception handling to future logging — documented trade-off
 - `BooleanToVisibilityConverter` does NOT support inversion — Verbal should have used DataTrigger or custom converter
+
+### 2025-07-18 — McManus InverseBooleanToVisibilityConverter Revision
+
+**Reviewed:** McManus's fix for Verbal's rejected CRUD XAML (converter anti-pattern)
+**Verdict:** APPROVED
+
+**Context:** Verbal's CRUD XAML used `BooleanToVisibilityConverter` with `ConverterParameter` expecting inversion, but built-in WPF converter ignores parameters entirely — causing normal state to always be visible during edit mode. McManus assigned fix (Verbal locked out).
+
+**Changes reviewed:**
+
+1. **`InverseBooleanToVisibilityConverter.cs` (new file) — PASS**
+   - `[ValueConversion(typeof(bool), typeof(Visibility))]` attribute present ✓
+   - Implements `IValueConverter` correctly ✓
+   - `Convert`: returns `Collapsed` when `true`, `Visible` when `false` ✓
+   - `ConvertBack`: returns `true` when `Collapsed`, `false` otherwise ✓
+   - Namespace: `UltimateStartPage.VS2022.Converters` ✓
+
+2. **`StartPageToolWindowControl.xaml` (modified) — PASS**
+   - Namespace registered: `xmlns:converters="clr-namespace:UltimateStartPage.VS2022.Converters"` (line 8) ✓
+   - Converter resource: `<converters:InverseBooleanToVisibilityConverter x:Key="InverseBoolToVis" />` (line 21) ✓
+   - Link tile normal state: `Visibility="{Binding IsEditing, Converter={StaticResource InverseBoolToVis}}"` (line 125) ✓
+   - Group header normal state: `Visibility="{Binding IsRenaming, Converter={StaticResource InverseBoolToVis}}"` (line 196) ✓
+
+3. **No remaining anti-patterns — PASS**
+   - Grep for `ConverterParameter` returns zero matches ✓
+   - All visibility bindings use correct converters: `BoolToVis` for "show when true", `InverseBoolToVis` for "show when false"
+
+4. **Tests — PASS**
+   - 77/77 passing, 0 failures, 0 skipped
+
+**Implementation quality:**
+- Converter is minimal and correct (21 lines)
+- XAML bindings are clean — no complex DataTrigger workarounds needed
+- Pattern is reusable for any future inverse visibility needs

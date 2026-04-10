@@ -378,3 +378,52 @@ StartPageViewModel:
 - ✅ Fire-and-forget save pattern consistent across ViewModels
 - ✅ AsyncRelayCommand<T> prevents re-entrant execution
 
+
+### 2026-04-10 — InverseBooleanToVisibilityConverter Fix (Keaton Rejection Response)
+
+**Context:**
+Keaton rejected Verbal's CRUD XAML implementation because `BooleanToVisibilityConverter` does not support `ConverterParameter` for inversion. The attempted pattern (`ConverterParameter="{x:Static Visibility.Collapsed}"`) is invalid — `BooleanToVisibilityConverter` ignores the parameter entirely. This caused normal display content to remain visible during edit mode, creating visual overlap.
+
+**Problem Areas in Original XAML:**
+- Line 121-127: Normal link tile view (`Button` with `IsEditing` binding) tried to invert visibility via `ConverterParameter`
+- Line 198: Normal group header (`DockPanel` with `IsRenaming` binding) tried to invert visibility via `ConverterParameter`
+
+**Solution:**
+Created `InverseBooleanToVisibilityConverter` to provide proper mutual exclusivity:
+- **true → Collapsed** (editing active, hide normal view)
+- **false → Visible** (not editing, show normal view)
+
+**Implementation:**
+1. Created `src/UltimateStartPage.VS2022/Converters/` folder
+2. Created `InverseBooleanToVisibilityConverter.cs`:
+   - Implements `IValueConverter` with `[ValueConversion(typeof(bool), typeof(Visibility))]`
+   - `Convert`: `true ? Collapsed : Visible`
+   - `ConvertBack`: `Visibility.Collapsed ? true : false`
+3. Updated `StartPageToolWindowControl.xaml`:
+   - Added `xmlns:converters="clr-namespace:UltimateStartPage.VS2022.Converters"` namespace
+   - Registered `<converters:InverseBooleanToVisibilityConverter x:Key="InverseBoolToVis"/>` in resources
+   - Replaced invalid `ConverterParameter` usage:
+     - Normal link tile: `Visibility="{Binding IsEditing, Converter={StaticResource InverseBoolToVis}}"`
+     - Normal group header: `Visibility="{Binding IsRenaming, Converter={StaticResource InverseBoolToVis}}"`
+   - Edit mode views continue using `BoolToVis` (already correct)
+
+**Visibility Logic (Final State):**
+- **Link Tile:**
+  - Normal Button: `IsEditing=false → Visible`, `IsEditing=true → Collapsed` (InverseBoolToVis)
+  - Edit Grid: `IsEditing=true → Visible`, `IsEditing=false → Collapsed` (BoolToVis)
+- **Link Group Header:**
+  - Normal DockPanel: `IsRenaming=false → Visible`, `IsRenaming=true → Collapsed` (InverseBoolToVis)
+  - Rename DockPanel: `IsRenaming=true → Visible`, `IsRenaming=false → Collapsed` (BoolToVis)
+
+**Files Changed:**
+- `src/UltimateStartPage.VS2022/Converters/InverseBooleanToVisibilityConverter.cs` (new)
+- `src/UltimateStartPage.VS2022/ToolWindows/StartPageToolWindowControl.xaml` (namespace + resource + 2 bindings fixed)
+
+**Validation:**
+- ✅ All 77 Core tests passing (no Core changes, VS2022 project only)
+- ✅ Converter follows standard WPF `IValueConverter` pattern
+- ✅ Mutual exclusivity guaranteed: normal/edit views cannot overlap
+- ✅ No `ConverterParameter` anti-pattern remaining
+
+**Key Learning:**
+`BooleanToVisibilityConverter` is sealed and does not respect `ConverterParameter`. Inversion requires a dedicated inverse converter. This is a standard WPF pattern — never assume built-in converters support parameterization without checking MSDN.

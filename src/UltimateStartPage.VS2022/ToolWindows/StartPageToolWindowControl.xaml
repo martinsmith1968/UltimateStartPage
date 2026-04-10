@@ -5,6 +5,7 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:vsui="clr-namespace:Microsoft.VisualStudio.Shell;assembly=Microsoft.VisualStudio.Shell.15.0"
              xmlns:viewmodels="clr-namespace:UltimateStartPage.Core.ViewModels;assembly=UltimateStartPage.Core"
+             xmlns:converters="clr-namespace:UltimateStartPage.VS2022.Converters"
              mc:Ignorable="d"
              d:DesignHeight="600" d:DesignWidth="900"
              d:DataContext="{d:DesignInstance viewmodels:StartPageViewModel, IsDesignTimeCreatable=False}"
@@ -15,6 +16,9 @@
 
         <!-- BooleanToVisibilityConverter -->
         <BooleanToVisibilityConverter x:Key="BoolToVis" />
+        
+        <!-- InverseBooleanToVisibilityConverter -->
+        <converters:InverseBooleanToVisibilityConverter x:Key="InverseBoolToVis" />
 
         <!-- Icon button style: small square buttons for edit/delete actions -->
         <Style x:Key="IconButtonStyle" TargetType="Button">
@@ -117,14 +121,8 @@
                 <Button Style="{StaticResource LinkTileButtonStyle}"
                         Command="{Binding OpenCommand}"
                         ToolTip="{Binding Path}"
-                        Margin="0" Padding="8,4" Width="Auto" Height="Auto">
-                    <Button.Visibility>
-                        <Binding Path="IsEditing" Converter="{StaticResource BoolToVis}">
-                            <Binding.ConverterParameter>
-                                <x:Static Member="Visibility.Collapsed" />
-                            </Binding.ConverterParameter>
-                        </Binding>
-                    </Button.Visibility>
+                        Margin="0" Padding="8,4" Width="Auto" Height="Auto"
+                        Visibility="{Binding IsEditing, Converter={StaticResource InverseBoolToVis}}">
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*" />
@@ -195,7 +193,7 @@
             <StackPanel Margin="0,0,0,20">
                 
                 <!-- Group header: normal state (IsRenaming = false) -->
-                <DockPanel Margin="2,0,0,4" Visibility="{Binding IsRenaming, Converter={StaticResource BoolToVis}, ConverterParameter={x:Static Visibility.Collapsed}}">
+                <DockPanel Margin="2,0,0,4" Visibility="{Binding IsRenaming, Converter={StaticResource InverseBoolToVis}}">
                     <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
                         <Button Style="{StaticResource IconButtonStyle}"
                                 Content="✏"
