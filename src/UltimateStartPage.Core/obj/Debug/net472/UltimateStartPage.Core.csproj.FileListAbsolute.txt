@@ -1,9 +1,0 @@
-C:\Dev\GitHub\martinsmith1968\UltimateStartPage\src\UltimateStartPage.Core\bin\Debug\net472\UltimateStartPage.Core.dll
-C:\Dev\GitHub\martinsmith1968\UltimateStartPage\src\UltimateStartPage.Core\bin\Debug\net472\UltimateStartPage.Core.pdb
-C:\Dev\GitHub\martinsmith1968\UltimateStartPage\src\UltimateStartPage.Core\obj\Debug\net472\UltimateStartPage.Core.csproj.AssemblyReference.cache
-C:\Dev\GitHub\martinsmith1968\UltimateStartPage\src\UltimateStartPage.Core\obj\Debug\net472\UltimateStartPage.Core.GeneratedMSBuildEditorConfig.editorconfig
-C:\Dev\GitHub\martinsmith1968\UltimateStartPage\src\UltimateStartPage.Core\obj\Debug\net472\UltimateStartPage.Core.AssemblyInfoInputs.cache
-C:\Dev\GitHub\martinsmith1968\UltimateStartPage\src\UltimateStartPage.Core\obj\Debug\net472\UltimateStartPage.Core.AssemblyInfo.cs
-C:\Dev\GitHub\martinsmith1968\UltimateStartPage\src\UltimateStartPage.Core\obj\Debug\net472\UltimateStartPage.Core.csproj.CoreCompileInputs.cache
-C:\Dev\GitHub\martinsmith1968\UltimateStartPage\src\UltimateStartPage.Core\obj\Debug\net472\UltimateStartPage.Core.dll
-C:\Dev\GitHub\martinsmith1968\UltimateStartPage\src\UltimateStartPage.Core\obj\Debug\net472\UltimateStartPage.Core.pdb
