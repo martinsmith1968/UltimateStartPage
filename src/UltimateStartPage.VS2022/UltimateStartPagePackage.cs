@@ -12,14 +12,17 @@ namespace UltimateStartPage.VS2022
 {
     [PackageRegistration(UseManagedResourcesOnly = true, AllowsBackgroundLoading = true)]
     [Guid(PackageGuids.PackageGuidString)]
+    // Menus.ctmenu is compiled from UltimateStartPage.VS2022Commands.vsct and embedded as a resource.
+    [ProvideMenuResource("Menus.ctmenu", 1)]
     [ProvideToolWindow(
         typeof(StartPageToolWindow),
         Style = VsDockStyle.Tabbed,
         Window = EnvDTE.Constants.vsWindowKindMainWindow,
         MultiInstances = false,
         Transient = false)]
-    // Show the tool window automatically whenever there is no solution open.
-    // BackgroundLoad is required because we inherit from AsyncPackage.
+    // Load when VS shell is fully initialised so the View menu command is always registered.
+    [ProvideAutoLoad(VSConstants.UICONTEXT.ShellInitialized_string, PackageAutoLoadFlags.BackgroundLoad)]
+    // Also auto-show the window explicitly when there is no solution open.
     [ProvideAutoLoad(VSConstants.UICONTEXT.NoSolution_string, PackageAutoLoadFlags.BackgroundLoad)]
     public sealed class UltimateStartPagePackage : AsyncPackage
     {
@@ -41,6 +44,10 @@ namespace UltimateStartPage.VS2022
                 return _linkRepository;
             });
 
+            // Register the View > Ultimate Start Page command
+            await ShowStartPageCommand.InitializeAsync(this);
+
+            // Auto-show the start page only when no solution is currently open
             await ShowStartPageAsync();
         }
 
@@ -52,6 +59,13 @@ namespace UltimateStartPage.VS2022
         private async Task ShowStartPageAsync()
         {
             await JoinableTaskFactory.SwitchToMainThreadAsync();
+
+            // Don't auto-show if a solution is already open — the user is working on something
+            var solution = await GetServiceAsync(typeof(SVsSolution)) as IVsSolution;
+            object isOpenObj = null;
+            solution?.GetProperty((int)__VSPROPID.VSPROPID_IsSolutionOpen, out isOpenObj);
+            if (isOpenObj is bool isOpen && isOpen)
+                return;
 
             var window = await FindToolWindowAsync(
                 typeof(StartPageToolWindow),

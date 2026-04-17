@@ -18,7 +18,7 @@
     <AssemblyName>UltimateStartPage.VS2022</AssemblyName>
     <TargetFrameworkVersion>v4.7.2</TargetFrameworkVersion>
     <GeneratePkgDefFile>true</GeneratePkgDefFile>
-    <IncludeAssemblyInVSIXContainer>false</IncludeAssemblyInVSIXContainer>
+    <IncludeAssemblyInVSIXContainer>true</IncludeAssemblyInVSIXContainer>
     <IncludeDebugSymbolsInVSIXContainer>false</IncludeDebugSymbolsInVSIXContainer>
     <IncludeDebugSymbolsInLocalVSIXDeployment>true</IncludeDebugSymbolsInLocalVSIXDeployment>
     <CopyBuildOutputToOutputDirectory>false</CopyBuildOutputToOutputDirectory>
@@ -26,8 +26,13 @@
     <StartAction>Program</StartAction>
     <StartProgram>$(DevEnvDir)devenv.exe</StartProgram>
     <StartArguments>/rootsuffix Exp</StartArguments>
-    <RegisterOutputPackage>true</RegisterOutputPackage>
-    <RegisterWithCodebase>true</RegisterWithCodebase>
+    <!--
+      RegisterOutputPackage and RegisterWithCodebase deploy the VSIX to the VS experimental
+      instance. This is only valid inside Visual Studio — dotnet build rejects VSIX deployment
+      with an error, so restrict these flags to VS builds only.
+    -->
+    <RegisterOutputPackage Condition="'$(BuildingInsideVisualStudio)' == 'true'">true</RegisterOutputPackage>
+    <RegisterWithCodebase Condition="'$(BuildingInsideVisualStudio)' == 'true'">true</RegisterWithCodebase>
   </PropertyGroup>
 
   <!--
@@ -76,6 +81,10 @@
     <Reference Include="System.Xaml" />
     <Reference Include="System" />
     <Reference Include="System.Runtime" />
+    <!-- OleMenuCommandService inherits from MenuCommandService in System.Design;
+         System.Design itself depends on System.Drawing. -->
+    <Reference Include="System.Design" />
+    <Reference Include="System.Drawing" />
   </ItemGroup>
 
   <ItemGroup>
@@ -112,26 +121,27 @@
     </Reference>
     <Reference Include="Microsoft.VisualStudio.Threading">
       <!--
-        Use the VS-installed Threading assembly (version 17.14) because the VS-installed
-        Shell.15.0 in PublicAssemblies references Threading 17.14, not the NuGet 17.0 version.
-        MSBuildBinPath resolves to the VS MSBuild bin directory; the VSSDK assemblies are two
-        levels up under Microsoft\VisualStudio\v17.0\VSSDK.
+        Use the NuGet-resolved Threading assembly so the reference works with both
+        dotnet build and VS MSBuild. The version matches the transitive dependency
+        resolved from Microsoft.VisualStudio.SDK 17.0.31902.203.
       -->
-      <HintPath>$(MSBuildBinPath)\..\..\Microsoft\VisualStudio\v17.0\VSSDK\Microsoft.VisualStudio.Threading.dll</HintPath>
+      <HintPath>$(NuGetPackageRoot)microsoft.visualstudio.threading\17.0.64\lib\net472\Microsoft.VisualStudio.Threading.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="Microsoft.VisualStudio.Utilities">
       <!--
-        Utilities.dll is in VS IDE folder, not PublicAssemblies, so use the VS install path.
-        $(MSBuildBinPath) = VS MSBuild\Current\Bin; go up to Common7\IDE.
+        Use the NuGet-resolved Utilities assembly so the reference works with both
+        dotnet build and VS MSBuild.
       -->
-      <HintPath>$(MSBuildBinPath)\..\..\..\Common7\IDE\Microsoft.VisualStudio.Utilities.dll</HintPath>
+      <HintPath>$(NuGetPackageRoot)microsoft.visualstudio.utilities\17.0.31902.203\lib\net472\Microsoft.VisualStudio.Utilities.dll</HintPath>
       <Private>False</Private>
     </Reference>
   </ItemGroup>
 
   <ItemGroup>
+    <Compile Include="Converters\InverseBooleanToVisibilityConverter.cs" />
     <Compile Include="Guids.cs" />
+    <Compile Include="ShowStartPageCommand.cs" />
     <Compile Include="UltimateStartPagePackage.cs" />
     <Compile Include="ToolWindows\StartPageToolWindow.cs" />
     <Compile Include="ToolWindows\StartPageToolWindowControl.xaml.cs">
@@ -167,7 +177,40 @@
     </ProjectReference>
   </ItemGroup>
 
+  <ItemGroup>
+    <VSCTCompile Include="UltimateStartPage.VS2022Commands.vsct">
+      <!--
+        ResourceName must match the string in [ProvideMenuResource("Menus.ctmenu", 1)].
+        VSSDK compiles the .vsct into a binary resource embedded in the assembly.
+      -->
+      <ResourceName>Menus.ctmenu</ResourceName>
+    </VSCTCompile>
+  </ItemGroup>
+
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+
+  <!--
+    When building with dotnet build (MSBuildRuntimeType == Core), disable VSIX deployment.
+    VSIX deployment requires VS-hosted MSBuild tools that are unavailable in CoreCLR mode.
+    CreateVsixContainer is still allowed so the .vsix package is produced for CI artifact
+    publishing — only the local VS experimental-instance deployment is suppressed.
+  -->
+  <PropertyGroup Condition="'$(MSBuildRuntimeType)' == 'Core'">
+    <DeployExtension>false</DeployExtension>
+  </PropertyGroup>
+
+  <!--
+    WPF XAML compilation (generates InitializeComponent for <Page> items).
+    When built with VS MSBuild, Microsoft.WinFx.targets lives in $(MSBuildBinPath).
+    When built with dotnet build, MSBuildBinPath points to the .NET SDK which does not
+    include WinFx targets, so fall back to the WindowsDesktop SDK version, which
+    automatically selects the CoreCLR-compatible PresentationBuildTasks.dll.
+  -->
+  <Import Project="$(MSBuildBinPath)\Microsoft.WinFx.targets"
+          Condition="Exists('$(MSBuildBinPath)\Microsoft.WinFx.targets')" />
+  <Import Project="$(MSBuildSDKsPath)\Microsoft.NET.Sdk.WindowsDesktop\targets\Microsoft.WinFX.targets"
+          Condition="!Exists('$(MSBuildBinPath)\Microsoft.WinFx.targets') And Exists('$(MSBuildSDKsPath)\Microsoft.NET.Sdk.WindowsDesktop\targets\Microsoft.WinFX.targets')" />
+
   <Import Project="$(VSToolsPath)\VSSDK\Microsoft.VsSDK.targets"
           Condition="Exists('$(VSToolsPath)\VSSDK\Microsoft.VsSDK.targets')" />
 </Project>

@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<CommandTable xmlns="http://schemas.microsoft.com/VisualStudio/2005-10-18/CommandTable"
+              xmlns:xs="http://www.w3.org/2001/XMLSchema">
+
+  <Extern href="stdidcmd.h"/>
+  <Extern href="vsshlids.h"/>
+
+  <Commands package="pkgUltimateStartPage">
+    <!--
+      Add a group in the View menu so "Ultimate Start Page" appears as a top-level View entry,
+      consistent with other VS tool-window commands (e.g. "View > Solution Explorer").
+    -->
+    <Groups>
+      <Group guid="guidUltimateStartPageCmdSet" id="grpViewUltimateStartPage" priority="0x0200">
+        <Parent guid="guidSHLMainMenu" id="IDM_VS_MENU_VIEW"/>
+      </Group>
+    </Groups>
+
+    <Buttons>
+      <Button guid="guidUltimateStartPageCmdSet" id="cmdidShowStartPage" priority="0x0100" type="Button">
+        <Parent guid="guidUltimateStartPageCmdSet" id="grpViewUltimateStartPage"/>
+        <Strings>
+          <ButtonText>Ultimate Start &amp;Page</ButtonText>
+          <ToolTipText>Show the Ultimate Start Page tool window</ToolTipText>
+        </Strings>
+      </Button>
+    </Buttons>
+  </Commands>
+
+  <Symbols>
+    <GuidSymbol name="pkgUltimateStartPage"       value="{2B5B1F3A-C8E4-4D1B-B9A7-3F9E8D2C1A05}" />
+    <GuidSymbol name="guidUltimateStartPageCmdSet" value="{1A2B3C4D-5E6F-4789-A0B1-C2D3E4F5A6B7}">
+      <IDSymbol name="grpViewUltimateStartPage" value="0x1020" />
+      <IDSymbol name="cmdidShowStartPage"       value="0x0100" />
+    </GuidSymbol>
+  </Symbols>
+
+</CommandTable>

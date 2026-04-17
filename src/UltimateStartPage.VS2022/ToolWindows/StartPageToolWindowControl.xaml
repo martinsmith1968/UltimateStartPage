@@ -68,7 +68,10 @@
             <Setter Property="VerticalContentAlignment" Value="Center" />
         </Style>
 
-        <!-- Link tile: custom button template with VS-themed hover state -->
+        <!-- Link tile: custom button template with VS-themed hover state. Note: this style is
+             used inside the LinkTileTemplate where a sibling Grid provides the edit overlay.
+             The outer Border in that template uses a Grid wrapper to host both this Button
+             and the edit-state Grid as overlapping children. -->
         <Style x:Key="LinkTileButtonStyle" TargetType="Button">
             <Setter Property="Background"       Value="{DynamicResource {x:Static vsui:VsBrushes.ButtonFaceKey}}" />
             <Setter Property="Foreground"       Value="{DynamicResource {x:Static vsui:VsBrushes.ButtonTextKey}}" />
@@ -110,13 +113,16 @@
             </Setter>
         </Style>
 
-        <!-- Link tile content template with edit state (DataContext: LinkViewModel) -->
+        <!-- Link tile content template with edit state (DataContext: LinkViewModel).
+             The Border uses a Grid as its single child so that the normal Button and the
+             edit-state Grid can overlap as stacked layers (only one is visible at a time). -->
         <DataTemplate x:Key="LinkTileTemplate" DataType="{x:Type viewmodels:LinkViewModel}">
             <Border Width="190" Height="58" Margin="4"
                     Background="{DynamicResource {x:Static vsui:VsBrushes.ButtonFaceKey}}"
                     BorderBrush="{DynamicResource {x:Static vsui:VsBrushes.ToolWindowBorderKey}}"
                     BorderThickness="1">
-                
+                <Grid>
+
                 <!-- Normal view state (IsEditing = false) -->
                 <Button Style="{StaticResource LinkTileButtonStyle}"
                         Command="{Binding OpenCommand}"
@@ -184,6 +190,7 @@
                                 Command="{Binding CancelEditCommand}"
                                 ToolTip="Cancel" />
                     </StackPanel>
+                </Grid>
                 </Grid>
             </Border>
         </DataTemplate>
