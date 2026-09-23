@@ -23,6 +23,14 @@ bld/
 [Ll]og/
 [Ll]ogs/
 
+# Visual Studio
+.vs/
+*.user
+*.suo
+TestResults/
+*.vsix
+_ReSharper.Caches/
+
 # .NET Core
 project.lock.json
 project.fragment.lock.json

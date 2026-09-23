@@ -1,0 +1,52 @@
+<platformUI:DialogWindow x:Class="UltimateStartPage.Dialogs.LinkEditorDialog"
+                        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                        xmlns:platformUI="clr-namespace:Microsoft.VisualStudio.PlatformUI;assembly=Microsoft.VisualStudio.Shell.15.0"
+                        xmlns:toolkit="clr-namespace:Community.VisualStudio.Toolkit;assembly=Community.VisualStudio.Toolkit"
+                        toolkit:Themes.UseVsTheme="True"
+                        Width="560" SizeToContent="Height" ResizeMode="NoResize"
+                        WindowStartupLocation="CenterOwner" ShowInTaskbar="False"
+                        FocusManager.FocusedElement="{Binding ElementName=TargetBox}">
+    <Grid Margin="16">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="Auto" />
+            <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <Label Grid.Row="0" Content="_Target:" Target="{Binding ElementName=TargetBox}" VerticalAlignment="Center" />
+        <DockPanel Grid.Row="0" Grid.Column="1" Margin="0,0,0,4">
+            <Button DockPanel.Dock="Right" Content="Folder…" Margin="4,0,0,0" MinWidth="70" Click="OnBrowseFolder"
+                    ToolTip="Pick a folder to open with File &gt; Open &gt; Folder" />
+            <Button DockPanel.Dock="Right" Content="File…" Margin="6,0,0,0" MinWidth="70" Click="OnBrowseFile"
+                    ToolTip="Pick a solution, project or any file" />
+            <TextBox x:Name="TargetBox" Padding="4,3" TextChanged="OnTargetChanged"
+                     ToolTip="A solution, project, folder or file path, or an http(s) URL" />
+        </DockPanel>
+
+        <TextBlock Grid.Row="1" Grid.Column="1" x:Name="KindText" Margin="2,0,0,8" Opacity="0.7" />
+
+        <Label Grid.Row="2" Content="T_itle:" Target="{Binding ElementName=TitleBox}" VerticalAlignment="Center" />
+        <TextBox Grid.Row="2" Grid.Column="1" x:Name="TitleBox" Padding="4,3" Margin="0,0,0,8"
+                 TextChanged="OnTitleChanged" />
+
+        <Label Grid.Row="3" Content="_Description:" Target="{Binding ElementName=DescriptionBox}" VerticalAlignment="Center" />
+        <TextBox Grid.Row="3" Grid.Column="1" x:Name="DescriptionBox" Padding="4,3" Margin="0,0,0,8"
+                 ToolTip="Optional. Shown as a tooltip." />
+
+        <Label Grid.Row="4" Content="_Section:" Target="{Binding ElementName=SectionBox}" VerticalAlignment="Center" />
+        <ComboBox Grid.Row="4" Grid.Column="1" x:Name="SectionBox" Margin="0,0,0,8" />
+
+        <StackPanel Grid.Row="5" Grid.ColumnSpan="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,8,0,0">
+            <Button Content="OK" MinWidth="80" IsDefault="True" Click="OnOk" />
+            <Button Content="Cancel" MinWidth="80" Margin="8,0,0,0" IsCancel="True" />
+        </StackPanel>
+    </Grid>
+</platformUI:DialogWindow>

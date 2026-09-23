@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<CommandTable xmlns="http://schemas.microsoft.com/VisualStudio/2005-10-18/CommandTable" xmlns:xs="http://www.w3.org/2001/XMLSchema">
+
+  <Extern href="stdidcmd.h"/>
+  <Extern href="vsshlids.h"/>
+  <Include href="KnownImageIds.vsct"/>
+
+  <Commands package="guidUltimateStartPagePackage">
+    <Groups>
+      <!-- Our own group at the top of the File menu. -->
+      <Group guid="guidUltimateStartPageCmdSet" id="FileMenuGroup" priority="0x0050">
+        <Parent guid="guidSHLMainMenu" id="IDM_VS_MENU_FILE"/>
+      </Group>
+    </Groups>
+
+    <Buttons>
+      <!-- View > Other Windows > Ultimate Start Page -->
+      <Button guid="guidUltimateStartPageCmdSet" id="ShowStartPage" priority="0x0100" type="Button">
+        <Parent guid="guidSHLMainMenu" id="IDG_VS_WNDO_OTRWNDWS1"/>
+        <Icon guid="ImageCatalogGuid" id="Home"/>
+        <CommandFlag>IconIsMoniker</CommandFlag>
+        <Strings>
+          <ButtonText>Ultimate Start Page</ButtonText>
+          <LocCanonicalName>.View.UltimateStartPage</LocCanonicalName>
+        </Strings>
+      </Button>
+    </Buttons>
+  </Commands>
+
+  <CommandPlacements>
+    <!-- Also File > Ultimate Start Page -->
+    <CommandPlacement guid="guidUltimateStartPageCmdSet" id="ShowStartPage" priority="0x0100">
+      <Parent guid="guidUltimateStartPageCmdSet" id="FileMenuGroup"/>
+    </CommandPlacement>
+  </CommandPlacements>
+
+  <KeyBindings>
+    <!-- Ctrl+Alt+Home. Change or remove under Tools > Options > Environment > Keyboard (View.UltimateStartPage). -->
+    <KeyBinding guid="guidUltimateStartPageCmdSet" id="ShowStartPage" editor="guidVSStd97" key1="VK_HOME" mod1="Control Alt"/>
+  </KeyBindings>
+
+  <Symbols>
+    <GuidSymbol name="guidUltimateStartPagePackage" value="{74a93348-7740-4656-91c2-242c45d647c5}" />
+
+    <GuidSymbol name="guidUltimateStartPageCmdSet" value="{9040fe26-0285-4c97-b455-80d491327ae5}">
+      <IDSymbol name="FileMenuGroup" value="0x1020" />
+      <IDSymbol name="ShowStartPage" value="0x0100" />
+    </GuidSymbol>
+  </Symbols>
+</CommandTable>
