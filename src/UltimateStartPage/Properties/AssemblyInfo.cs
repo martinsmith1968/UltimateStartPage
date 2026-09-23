@@ -1,0 +1,13 @@
+using System.Reflection;
+using System.Runtime.InteropServices;
+using UltimateStartPage;
+
+[assembly: AssemblyTitle(Vsix.Name)]
+[assembly: AssemblyDescription(Vsix.Description)]
+[assembly: AssemblyCompany(Vsix.Author)]
+[assembly: AssemblyProduct(Vsix.Name)]
+[assembly: AssemblyCopyright(Vsix.Author)]
+[assembly: ComVisible(false)]
+
+[assembly: AssemblyVersion(Vsix.Version)]
+[assembly: AssemblyFileVersion(Vsix.Version)]
